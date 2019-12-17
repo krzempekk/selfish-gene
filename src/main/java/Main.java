@@ -1,15 +1,11 @@
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 import javax.swing.*;
@@ -19,37 +15,36 @@ public class Main implements ActionListener {
     public int gap = 0;
     public int boardWidth = 1000, boardHeight = 1000, sidebarWidth = 400;
     public int stepSkip = 1;
+
     public WorldMap map;
-
-    public JButton restartButton;
-    public JButton pauseButton;
-
-    public String selectedGenome;
+    public MapStats mapStats;
 
     public BoardPanel boardPanel;
     public SidePanel sidePanel;
 
     public int width, height, startEnergy, moveEnergy, plantEnergy;
     public double jungleRatio;
-    public int stepPause;
+
+    public int initialAnimals = 10, initialPlants = 10, plantsGrowth = 1, stepPause = 200;
 
     private AtomicBoolean paused;
-    private AtomicBoolean restart;
-    private Thread threadObject;
 
+    private Thread threadObject;
     private Runnable runnable;
 
     Main() {
         this.readParameters();
-        this.stepPause = 200;
 
         JFrame frame = new JFrame();
         frame.setLayout(new FlowLayout(FlowLayout.LEFT, 0,0 ));
 
-        this.map = new WorldMap(width, height, 10, 100, 1, jungleRatio, startEnergy, moveEnergy, plantEnergy);
+        this.map = new WorldMap(width, height, initialAnimals, initialPlants, plantsGrowth, jungleRatio, startEnergy, moveEnergy, plantEnergy);
+        this.mapStats = new MapStats(map);
 
-        this.boardPanel = new BoardPanel(width, height, gap, boardWidth, boardHeight, map);
-        this.sidePanel = new SidePanel(sidebarWidth, boardHeight);
+        this.sidePanel = new SidePanel(sidebarWidth, boardHeight, mapStats);
+        this.sidePanel.addActionListener(this);
+
+        this.boardPanel = new BoardPanel(width, height, gap, boardWidth, boardHeight, map, this.sidePanel);
 
         frame.add(boardPanel);
         frame.add(sidePanel);
@@ -61,9 +56,9 @@ public class Main implements ActionListener {
 
     private String getParametersFile() {
         StringBuilder contentBuilder = new StringBuilder();
-        try (Stream<String> stream = Files.lines(Paths.get("/home/sans/IdeaProjects/selfish-gene/src/main/resources/parameters.json"), StandardCharsets.UTF_8)) {
+        try (Stream<String> stream = Files.lines(Paths.get(getClass().getResource("parameters.json").toURI()), StandardCharsets.UTF_8)) {
             stream.forEach(s -> contentBuilder.append(s).append("\n"));
-        } catch (IOException e) {
+        } catch (IOException | URISyntaxException e) {
             e.printStackTrace();
         }
         return contentBuilder.toString();
@@ -98,6 +93,7 @@ public class Main implements ActionListener {
 
                     map.run();
                     boardPanel.renderMap();
+                    sidePanel.update();
 
                     try {
                         Thread.sleep(stepPause);
@@ -120,12 +116,9 @@ public class Main implements ActionListener {
     @Override
     public void actionPerformed(ActionEvent actionEvent) {
         String command = actionEvent.getActionCommand();
-        if(command.equals("RESTART")) {
-        } else if(command.equals("PAUSE")) {
-            this.pauseButton.setText("RESUME");
+        if(command.equals("PAUSE")) {
             this.paused.set(true);
         } else if(command.equals("RESUME")) {
-            this.pauseButton.setText("PAUSE");
             this.paused.set(false);
             synchronized(threadObject) {
                 threadObject.notify();

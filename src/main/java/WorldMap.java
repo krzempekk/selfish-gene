@@ -33,11 +33,6 @@ public class WorldMap implements PropertyChangeListener {
         Vector2D jungleUpperRight = new Vector2D((lowerLeft.x + upperRight.x)/2 + jungleSize/2, (lowerLeft.y + upperRight.y)/2 + jungleSize/2);
         mapSegments.add(new MapSegment(jungleLowerLeft, jungleUpperRight, PlaceType.JUNGLE));
 
-//        mapSegments.add(new MapSegment(new Vector2D(width/8, height/8), new Vector2D(3*width/8, 3*height/8), PlaceType.JUNGLE));
-//        mapSegments.add(new MapSegment(new Vector2D(5*width/8, 5*height/8), new Vector2D(7*width/8, 7*height/8), PlaceType.JUNGLE));
-//        mapSegments.add(new MapSegment(new Vector2D(width/8, 5*height/8), new Vector2D(3*width/8, 7*height/8), PlaceType.JUNGLE));
-//        mapSegments.add(new MapSegment(new Vector2D(5*width/8, height/8), new Vector2D(7*width/8, 3*height/8), PlaceType.JUNGLE));
-
         for(int i = lowerLeft.x; i <= upperRight.x; i++) {
             for(int j = lowerLeft.y; j <= upperRight.y; j++) {
                 freePositions.put(new Vector2D(i, j), getMapSegment(new Vector2D(i, j)));
@@ -94,7 +89,7 @@ public class WorldMap implements PropertyChangeListener {
         return objectAt(position).size() != 0;
     }
 
-    public Collection objectAt(Vector2D position) {
+    public Collection<IMapElement> objectAt(Vector2D position) {
         return mapElementMap.get(position);
     }
 
@@ -106,8 +101,11 @@ public class WorldMap implements PropertyChangeListener {
     }
 
     public Vector2D getRandomFreePositionFromSegment(MapSegment segment) {
-        PlaceType type = segment == null ? PlaceType.NORMAL : segment.type;
-        List<Vector2D> positions = freePositions.entrySet().stream().filter(entry -> type.equals(entry.getValue())).map(Map.Entry::getKey).collect(Collectors.toList());
+        List<Vector2D> positions = freePositions.entrySet()
+                .stream()
+                .filter(entry -> segment == null ? entry.getValue() == null : segment.equals(entry.getValue()))
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toList());
         int count = positions.size();
         if(count == 0) return null;
 
