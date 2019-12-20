@@ -2,6 +2,7 @@
   <dictionary name="sans">
     <words>
       <w>iter</w>
+      <w>untrack</w>
     </words>
   </dictionary>
 </component>

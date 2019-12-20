@@ -1,63 +1,49 @@
 import java.util.*;
 
 public class Genome {
-    List<Integer> sequence = new ArrayList<>();
-    int[] geneCount = new int[8];
+    private List<Integer> sequence = new ArrayList<>();
+    private int[] geneCount = new int[8];
 
-    final static int SEQ_LEN = 32;
+    public final static int SEQ_LEN = 32;
 
     public Genome() {
         for(int j = 0; j < SEQ_LEN; j++) {
-            sequence.add(Utils.randomInt(0, 7));
+            this.sequence.add(Utils.randomInt(0, 7));
         }
-        this.fixSequence();
-        Collections.sort(sequence);
         this.countGenes();
-    }
-
-    public int hashCode() {
-        long hash = 0;
-        for(int i = 0; i < 8; i++) {
-            hash = ((hash + geneCount[i]) * 32) % Integer.MAX_VALUE;
-        }
-        return (int) hash;
+        this.fixSequence();
+        Collections.sort(this.sequence);
     }
 
     public Genome(List<Integer> sequence) {
         this.sequence = sequence;
-        this.fixSequence();
-        Collections.sort(sequence);
         this.countGenes();
+        this.fixSequence();
+        Collections.sort(this.sequence);
     }
 
-    public void countGenes() {
-        for(int i = 0; i < 8; i++)
-            geneCount[i] = Collections.frequency(sequence, i);
-    }
+    public List<Integer> getSequence() { return this.sequence; }
 
-    public List<Integer> getSequence() {
-        return sequence;
-    }
+    public int[] getGeneCount() { return this.geneCount; }
 
     public List<Integer> getSequencePart(int start, int stop) {
-        return sequence.subList(start, stop);
+        return this.sequence.subList(start, stop);
+    }
+
+    private void countGenes() {
+        for(int i = 0; i < 8; i++)
+            this.geneCount[i] = Collections.frequency(this.sequence, i);
     }
 
     private void fixSequence() {
-        Integer[] frequencies = new Integer[8];
-
         for(int i = 0; i <= 7; i++) {
-            frequencies[i] = Collections.frequency(sequence, i);
-        }
-
-        for(int i = 0; i <= 7; i++) {
-            if(frequencies[i] == 0) {
+            if(this.geneCount[i] == 0) {
                 int j;
                 do {
                     j = Utils.randomInt(0, 7);
-                } while (frequencies[j] > 1);
-                frequencies[j]--; frequencies[i]++;
-                sequence.remove(j); sequence.add(i);
+                } while (this.geneCount[j] > 1);
+                this.geneCount[j]--; this.geneCount[i]++;
+                this.sequence.remove(j); this.sequence.add(i);
             }
         }
     }
@@ -79,14 +65,18 @@ public class Genome {
             newSequence.addAll(g.getSequencePart(partitionIndexes.get(part_index), partitionIndexes.get(part_index + 1)));
         }
 
-        Genome newGenome = new Genome(newSequence);
-
-        newGenome.fixSequence();
-
-        return newGenome;
+        return new Genome(newSequence);
     }
 
     public String toString() {
-        return sequence.toString();
+        return this.sequence.toString();
+    }
+
+    public int hashCode() {
+        long hash = 0;
+        for(int i = 0; i < 8; i++) {
+            hash = ((hash + this.geneCount[i]) * 32) % Integer.MAX_VALUE;
+        }
+        return (int) hash;
     }
 }

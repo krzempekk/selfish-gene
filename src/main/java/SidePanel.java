@@ -1,6 +1,7 @@
 import org.json.JSONObject;
 
 import javax.swing.*;
+import javax.swing.event.ChangeListener;
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.TableModel;
 import java.awt.*;
@@ -21,17 +22,15 @@ public class SidePanel extends JPanel implements ActionListener {
 
     JTable statTable;
     JTable trackedAnimalTable;
-    JScrollPane statTablePane;
-    JScrollPane trackedAnimalTablePane;
+    JTable genomeTable;
 
-    List<JLabel> mapDominatingGenomes;
-    List<JLabel> trackedAnimalGenomes;
+    JSlider animationSpeed;
 
     SidePanel(int sidebarWidth, int boardHeight, List<MapStats> mapStatsList) {
         this.mapStatsList = mapStatsList;
 
-        this.setSize(sidebarWidth, boardHeight);
-        this.setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+        this.setPreferredSize(new Dimension(sidebarWidth, boardHeight));
+        this.setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));
 
         TableModel statTableModel = new AbstractTableModel() {
             @Override
@@ -60,16 +59,16 @@ public class SidePanel extends JPanel implements ActionListener {
             }
         };
 
-        statTable = new JTable(statTableModel);
+        this.statTable = new JTable(statTableModel);
 
-        statTablePane = new JScrollPane(statTable);
-        statTablePane.setPreferredSize(new Dimension(500, 110));
+        JScrollPane statTablePane = new JScrollPane(this.statTable);
+        statTablePane.setPreferredSize(new Dimension(sidebarWidth, 110));
 
         TableModel trackedAnimalsTableModel = new AbstractTableModel() {
             @Override
             public String getColumnName(int col) {
                 if(col == 0) return "Stat name";
-                return mapStatsList.get(col - 1).isTracking() ? "Map " + col : "No selected animal";
+                return "Map " + col;
             }
 
             @Override
@@ -105,63 +104,103 @@ public class SidePanel extends JPanel implements ActionListener {
                             return mapStats.getTrackedDeathEpoch();
                     }
                 }
+                return "-";
+            }
+        };
+
+        this.trackedAnimalTable = new JTable(trackedAnimalsTableModel);
+
+        JScrollPane trackedAnimalTablePane = new JScrollPane(this.trackedAnimalTable);
+        trackedAnimalTablePane.setPreferredSize(new Dimension(sidebarWidth, 80));
+
+        TableModel genomeTableModel = new AbstractTableModel() {
+            @Override
+            public String getColumnName(int col) {
+                if(col == 0) return "Map";
+                if(col == 1) return "Type";
+                return String.valueOf(col - 1);
+            }
+
+            @Override
+            public int getRowCount() {
+                return mapStatsList.size() * 2;
+            }
+
+            @Override
+            public int getColumnCount() {
+                return 10;
+            }
+
+            @Override
+            public Object getValueAt(int row, int col) {
+                int mapIndex = row / 2;
+                if(col == 0) { return String.valueOf(mapIndex + 1); }
+                if(col == 1) { return (row % 2 == 0) ? "Dominating" : "Selected"; };
+                Genome g = null;
+                if(row % 2 == 0) {
+                    g = mapStatsList.get(mapIndex).getDominatingGenome();
+                } else if(mapStatsList.get(mapIndex).getTrackedAnimal() != null) {
+                    g = mapStatsList.get(mapIndex).getTrackedAnimal().getGenome();
+                }
+                if(g != null) {
+                    return g.getGeneCount()[col - 2];
+                }
                 return null;
             }
         };
 
-        trackedAnimalTable = new JTable(trackedAnimalsTableModel);
+        this.genomeTable = new JTable(genomeTableModel);
 
-        trackedAnimalTablePane = new JScrollPane(trackedAnimalTable);
-        trackedAnimalTablePane.setPreferredSize(new Dimension(500, 80));
+        JScrollPane genomeTablePane = new JScrollPane(this.genomeTable);
+        genomeTablePane.setPreferredSize(new Dimension(sidebarWidth, 80));
 
         this.epochLabel = new JLabel("Epoch number " + mapStatsList.get(0).getEpoch());
 
+        this.animationSpeed = new JSlider(JSlider.HORIZONTAL, 10, 500, 200);
 
-        this.mapDominatingGenomes = new ArrayList<>();
-        this.trackedAnimalGenomes = new ArrayList<>();
-
-        for(int i = 0; i < mapStatsList.size(); i++) {
-            JLabel l = new JLabel("");
-            mapDominatingGenomes.add(l);
-            this.add(l);
-            l = new JLabel("");
-            trackedAnimalGenomes.add(l);
-            this.add(l);
-        }
-
-        this.add(epochLabel);
-        this.add(statTablePane);
-        this.add(trackedAnimalTablePane);
+        this.animationSpeed.setMajorTickSpacing(100);
+        this.animationSpeed.setMinorTickSpacing(10);
+        this.animationSpeed.setPaintTicks(true);
+        this.animationSpeed.setInverted(true);
 
         this.pauseButton = new JButton("PAUSE");
-        pauseButton.addActionListener(this);
-        this.add(pauseButton);
+        this.pauseButton.addActionListener(this);
 
         this.saveButton = new JButton("SAVE");
-        saveButton.addActionListener(this);
-        this.add(saveButton);
+        this.saveButton.addActionListener(this);
+
+        this.add(this.epochLabel);
+        this.add(new JLabel("Basic stats"));
+        this.add(statTablePane);
+        this.add(new JLabel("Tracked animals stats"));
+        this.add(trackedAnimalTablePane);
+        this.add(new JLabel("Genome stats"));
+        this.add(genomeTablePane);
+        this.add(new JLabel("Simulation speed"));
+        this.add(this.animationSpeed);
+
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.add(this.pauseButton);
+        buttonPanel.add(this.saveButton);
+        this.add(buttonPanel);
     }
 
     public void update() {
-        this.epochLabel.setText("Epoch number " + mapStatsList.get(0).getEpoch());
-        statTable.repaint();
-        trackedAnimalTable.repaint();
-
-        for(int i = 0; i < mapStatsList.size(); i++) {
-            mapDominatingGenomes.get(i).setText(mapStatsList.get(i).getDominatingGenome());
-            trackedAnimalGenomes.get(i).setText(mapStatsList.get(i).getTrackedGenome());
-        }
-
+        this.epochLabel.setText("Epoch number " + this.mapStatsList.get(0).getEpoch());
+        this.statTable.repaint();
+        this.trackedAnimalTable.repaint();
+        this.genomeTable.repaint();
     }
 
-    public void addActionListener(ActionListener acl) {
-        pauseButton.addActionListener(acl);
+    public void addActionListener(EventListener acl) {
+        this.pauseButton.addActionListener((ActionListener) acl);
+        this.animationSpeed.addChangeListener((ChangeListener) acl);
     }
 
     public void saveStatsToFile() {
         JSONObject statObject = new JSONObject();
         List<JSONObject> statList = new ArrayList<>();
-        for(MapStats mapStats: mapStatsList) {
+        for(MapStats mapStats: this.mapStatsList) {
             JSONObject stats = new JSONObject();
             for(MapStatsType mapStat: MapStatsType.values()) {
                 stats.put(String.valueOf(mapStat), mapStats.getAvgStat(mapStat));
@@ -180,14 +219,19 @@ public class SidePanel extends JPanel implements ActionListener {
     @Override
     public void actionPerformed(ActionEvent actionEvent) {
         String command = actionEvent.getActionCommand();
-        if(command.equals("PAUSE")) {
-            this.pauseButton.setText("RESUME");
-        } else if(command.equals("RESUME")) {
-            this.pauseButton.setText("PAUSE");
-        } else if(command.equals("SAVE")) {
-            this.saveStatsToFile();
-        } else if(command.equals("ANIMALS WITH DOMINATING GENOME")) {
+        switch (command) {
+            case "PAUSE":
+                this.pauseButton.setText("RESUME");
+                break;
+            case "RESUME":
+                this.pauseButton.setText("PAUSE");
+                break;
+            case "SAVE":
+                this.saveStatsToFile();
+                break;
+            case "ANIMALS WITH DOMINATING GENOME":
 
+                break;
         }
     }
 }

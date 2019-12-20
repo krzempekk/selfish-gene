@@ -15,7 +15,7 @@ public enum MapDirection {
     }
 
     public int getOrder() {
-        return order;
+        return this.order;
     }
 
     public MapDirection turn(int angle) {

@@ -2,19 +2,18 @@ import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
 
 public class Animal implements IMapElement {
-    public Genome genome;
+    private Genome genome;
     private Vector2D position;
     private MapDirection direction;
     private WorldMap worldMap;
     private PropertyChangeSupport support;
-    public int energy;
-    public int minEnergyToReproduce;
-    public static final double REPRODUCTION_ENERGY_LOSS = 0.25;
+    private int energy;
+    private static final double REPRODUCTION_ENERGY_LOSS = 0.25;
     private int moveEnergy;
-    public int epochBorn;
-    public int childCount;
-    public boolean isSuccessor;
-    public boolean isTracked;
+    private int epochBorn;
+    private int childCount;
+    private boolean isSuccessor;
+    private boolean isTracked;
 
     public Animal(Vector2D position, WorldMap worldMap, int energy, int moveEnergy) {
         this(new Genome(), position, worldMap, energy, moveEnergy, false);
@@ -27,23 +26,40 @@ public class Animal implements IMapElement {
         this.worldMap = worldMap;
         this.support = new PropertyChangeSupport(this);
         this.energy = energy;
-        this.minEnergyToReproduce = energy/2;
         this.moveEnergy = moveEnergy;
-        this.epochBorn = worldMap.epoch;
+        this.epochBorn = worldMap.getEpoch();
         this.childCount = 0;
         this.isSuccessor = isSuccessor;
-        this.isTracked = false;
     }
 
+    @Override
+    public Vector2D getPosition() {
+        return this.position;
+    }
+
+    public int getEnergy() { return this.energy; }
+
+    public int getChildCount() { return this.childCount; }
+
+    public Genome getGenome() { return this.genome; }
+
+    public int getEpochBorn() { return this.epochBorn; }
+
+    public boolean getSuccessor() { return this.isSuccessor; }
+
+    public void setSuccessor(boolean successor) { this.isSuccessor = successor; }
+
+    public void setTracked(boolean tracked) { this.isTracked = tracked; }
+
     private void turn() {
-         int angle = this.genome.sequence.get(Utils.randomInt(0, Genome.SEQ_LEN - 1));
+         int angle = this.genome.getSequence().get(Utils.randomInt(0, Genome.SEQ_LEN - 1));
          this.direction = this.direction.turn(angle);
     }
 
     public void move() {
         this.turn();
-        Vector2D newPosition = this.worldMap.calculateNewPosition(this.position, direction.toUnitVector());
-        support.firePropertyChange("position", this.position, newPosition);
+        Vector2D newPosition = this.worldMap.calculateNewPosition(this.position, this.direction.toUnitVector());
+        this.support.firePropertyChange("position", this.position, newPosition);
         this.position = newPosition;
         this.energy -= this.moveEnergy;
     }
@@ -53,46 +69,29 @@ public class Animal implements IMapElement {
     }
 
     public Animal reproduceWith(Animal partner) {
-        Vector2D newPosition = worldMap.getAdjacentFreePosition(this.getPosition());
-        if(newPosition != null) {
-            Genome newGenome = this.genome.mix(partner.genome);
+        Vector2D newPosition = this.worldMap.getAdjacentFreePosition(this.position);
+        if(newPosition == null) newPosition = this.worldMap.getAdjacentPosition(this.position);
 
-            int newEnergy = (int)((this.energy + partner.energy) * REPRODUCTION_ENERGY_LOSS);
-            this.energy *= (1 - REPRODUCTION_ENERGY_LOSS);
-            partner.energy *= (1 - REPRODUCTION_ENERGY_LOSS);
+        Genome newGenome = this.genome.mix(partner.genome);
 
-            this.childCount++;
-            partner.childCount++;
+        int newEnergy = (int)((this.energy + partner.energy) * REPRODUCTION_ENERGY_LOSS);
+        this.energy *= (1 - REPRODUCTION_ENERGY_LOSS);
+        partner.energy *= (1 - REPRODUCTION_ENERGY_LOSS);
 
-            boolean isChildSuccessor = this.isSuccessor || partner.isSuccessor;
+        if(this.isTracked) this.childCount++;
+        if(partner.isTracked) partner.childCount++;
 
-            return new Animal(newGenome, newPosition, worldMap, newEnergy, this.moveEnergy, isChildSuccessor);
-        }
-        return null;
+        boolean isChildSuccessor = this.isSuccessor || partner.isSuccessor;
+
+        return new Animal(newGenome, newPosition, this.worldMap, newEnergy, this.moveEnergy, isChildSuccessor);
     }
-
-    @Override
-    public Vector2D getPosition() {
-        return position;
-    }
-
-    public MapDirection getDirection() {
-        return direction;
-    }
-
-    public int getEnergy() { return energy; }
 
     public void addPropertyChangeListener(PropertyChangeListener pcl) {
-        support.addPropertyChangeListener(pcl);
+        this.support.addPropertyChangeListener(pcl);
     }
 
     public void removePropertyChangeListener(PropertyChangeListener pcl) {
-        support.removePropertyChangeListener(pcl);
-    }
-
-    @Override
-    public String toString() {
-        return "A";
+        this.support.removePropertyChangeListener(pcl);
     }
 }
 

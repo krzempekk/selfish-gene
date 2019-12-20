@@ -35,38 +35,42 @@ public class BoardPanel extends JPanel {
                     super.mouseClicked(mouseEvent);
                     Vector2D pos = new Vector2D(_x, _y);
                     mapStats.trackAnimal(pos);
-                    renderMap();
+                    BoardPanel.this.renderMap();
                     }
                 });
 
                 this.add(l);
-                labels.put(new Vector2D(x, y), l);
+                this.labels.put(new Vector2D(x, y), l);
             }
         }
 
-        this.setSize(boardWidth, boardHeight);
+        this.setPreferredSize(new Dimension(boardWidth, boardHeight));
     }
 
-    public Icon getPositionIcon(Vector2D position) {
-        PlaceType mapSegmentType = map.getMapSegmentType(position);
+    private Icon getCompoundIcon(Icon background, Icon foreground) {
+        return new CompoundIcon(CompoundIcon.Axis.Z_AXIS, 0, CompoundIcon.CENTER, CompoundIcon.CENTER, background, foreground);
+    }
 
-        ImageIcon background = sprites.get(mapSegmentType == PlaceType.NORMAL ? "platoCave" : "ideaWorld");
+    private Icon getPositionIcon(Vector2D position) {
+        PlaceType mapSegmentType = this.map.getMapSegmentType(position);
 
-        Food foodOnPosition = map.getFoodFrom(position);
-        List<Animal> animalsOnPosition = map.getSortedAnimalsFrom(position);
+        ImageIcon background = this.sprites.get(mapSegmentType == PlaceType.NORMAL ? "platoCave" : "ideaWorld");
+
+        Food foodOnPosition = this.map.getFoodFrom(position);
+        List<Animal> animalsOnPosition = this.map.getSortedAnimalsFrom(position);
 
         Icon icon;
 
         if(position.equals(this.mapStats.getTrackedPosition()) && this.mapStats.getTrackedDeathEpoch() > 0) {
-            icon = new CompoundIcon(CompoundIcon.Axis.Z_AXIS, 0, CompoundIcon.CENTER, CompoundIcon.CENTER, background, sprites.get("creatureDied"));
+            icon = this.getCompoundIcon(background, this.sprites.get("creatureDied"));
         } else if (foodOnPosition != null) {
-            icon = new CompoundIcon(CompoundIcon.Axis.Z_AXIS, 0, CompoundIcon.CENTER, CompoundIcon.CENTER, background, sprites.get(mapSegmentType == PlaceType.JUNGLE ? "betterFood" : "food"));
+            icon = this.getCompoundIcon(background, this.sprites.get(mapSegmentType == PlaceType.JUNGLE ? "betterFood" : "food"));
         } else if (animalsOnPosition.size() != 0) {
             int creatureCount = Math.min(animalsOnPosition.size(), 4);
-            int energyLevel = (4 * Math.min(animalsOnPosition.get(0).getEnergy(), map.startEnergy - 1)) / map.startEnergy;
-            icon = new CompoundIcon(CompoundIcon.Axis.Z_AXIS, 0, CompoundIcon.CENTER, CompoundIcon.CENTER, background, sprites.get("creature" + creatureCount + "-" + energyLevel));
+            int energyLevel = (4 * Math.min(animalsOnPosition.get(0).getEnergy(), this.map.getStartEnergy() - 1)) / this.map.getStartEnergy();
+            icon = this.getCompoundIcon(background, this.sprites.get("creature" + creatureCount + "-" + energyLevel));
             if(position.equals(this.mapStats.getTrackedPosition())) {
-                icon = new CompoundIcon(CompoundIcon.Axis.Z_AXIS, 0, CompoundIcon.CENTER, CompoundIcon.CENTER, icon, sprites.get("frame"));
+                icon = this.getCompoundIcon(icon, this.sprites.get("frame"));
             }
         } else {
             icon = background;
@@ -76,51 +80,46 @@ public class BoardPanel extends JPanel {
     }
 
     public void renderMap() {
-        for(int y = height - 1; y >= 0; y--) {
-            for(int x = 0; x <= width - 1; x++) {
+        for(int y = this.height - 1; y >= 0; y--) {
+            for(int x = 0; x <= this.width - 1; x++) {
                 Vector2D position = new Vector2D(x, y);
-                JLabel l = labels.get(position);
+                JLabel l = this.labels.get(position);
                 l.setText("");
-                l.setIcon(getPositionIcon(position));
+                l.setIcon(this.getPositionIcon(position));
             }
         }
     }
 
-    public void generateSprites() {
-        int iconWidth = (boardWidth - (width - 1) * gap) / width;
-        int iconHeight = (boardHeight - (height - 1) * gap) / height;
+    private ImageIcon getIconFromFile(String filename, int width, int height) {
+        ImageIcon icon = new ImageIcon(this.getClass().getResource(filename + ".png"));
+        Image image = icon.getImage();
+        Image newimg = image.getScaledInstance(width, height,  java.awt.Image.SCALE_SMOOTH);
+        return new ImageIcon(newimg);
+    }
+
+    private void generateSprites() {
+        int iconWidth = (this.boardWidth - (this.width - 1) * this.gap) / this.width;
+        int iconHeight = (this.boardHeight - (this.height - 1) * this.gap) / this.height;
 
         List<String> spriteNames = Arrays.asList("platoCave", "ideaWorld", "frame", "creatureDied");
 
         for(String spriteName: spriteNames) {
-            ImageIcon icon = new ImageIcon(getClass().getResource(spriteName + ".png"));
-            Image image = icon.getImage();
-            Image newimg = image.getScaledInstance(iconWidth, iconHeight,  java.awt.Image.SCALE_SMOOTH);
-            icon = new ImageIcon(newimg);
-            sprites.put(spriteName, icon);
+            ImageIcon icon = this.getIconFromFile(spriteName, iconWidth, iconHeight);
+            this.sprites.put(spriteName, icon);
         }
 
         for(int i = 1; i <= 4; i++) {
             for(int j = 1; j <= 4; j++) {
-                ImageIcon icon = new ImageIcon(getClass().getResource("creature" + i + ".png"));
-                Image image = icon.getImage();
-                Image newimg = image.getScaledInstance(iconWidth * (j + 4) / 8, iconHeight * (j + 4) / 8,  java.awt.Image.SCALE_SMOOTH);
-                icon = new ImageIcon(newimg);
-                sprites.put("creature" + i + "-" + (j - 1), icon);
+                ImageIcon icon = this.getIconFromFile("creature" + i, iconWidth * (j + 4) / 8, iconHeight * (j + 4) / 8);
+                this.sprites.put("creature" + i + "-" + (j - 1), icon);
             }
         }
 
-        ImageIcon icon = new ImageIcon(getClass().getResource("betterFood.png"));
-        Image image = icon.getImage();
-        Image newimg = image.getScaledInstance(iconHeight/2, iconHeight/2, java.awt.Image.SCALE_SMOOTH);
-        icon = new ImageIcon(newimg);
-        sprites.put("betterFood", icon);
+        ImageIcon icon = this.getIconFromFile("betterFood", iconWidth/2, iconHeight/2);
+        this.sprites.put("betterFood", icon);
 
-        icon = new ImageIcon(getClass().getResource("food.png"));
-        image = icon.getImage();
-        newimg = image.getScaledInstance(iconHeight/2, iconHeight/2, java.awt.Image.SCALE_SMOOTH);
-        icon = new ImageIcon(newimg);
-        sprites.put("food", icon);
+        icon = this.getIconFromFile("food", iconWidth/2, iconHeight/2);
+        this.sprites.put("food", icon);
     }
 
 }

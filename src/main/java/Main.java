@@ -10,12 +10,13 @@ import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 import javax.swing.*;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
+
 import org.json.*;
 import java.util.List;
 
-public class Main implements ActionListener {
-    public int stepSkip = 1;
-
+public class Main implements ActionListener, ChangeListener {
     public SidePanel sidePanel;
 
     public List<WorldMap> mapList;
@@ -30,43 +31,43 @@ public class Main implements ActionListener {
     private AtomicBoolean paused;
 
     private Thread threadObject;
-    private Runnable runnable;
 
     Main() {
         this.readParameters();
 
         int boardHeight = Math.min(height * 50, 500);
-        int boardWidth = (int) (boardHeight * ((double) width / height));
+        int boardWidth = (int) (boardHeight * ((double) this.width / this.height));
 
         int sidebarWidth = 400, gap = 0;
 
         JFrame frame = new JFrame();
-        frame.setLayout(new FlowLayout(FlowLayout.LEFT, 0,0 ));
+        frame.setLayout(new FlowLayout(FlowLayout.LEFT, 10,10 ));
 
         this.mapList = new ArrayList<>();
         this.mapStatsList = new ArrayList<>();
         this.boardPanelList = new ArrayList<>();
 
         for(int i = 0; i < this.mapNumber; i++) {
-            WorldMap map = new WorldMap(width, height, initialAnimals, initialPlants, plantsGrowth, jungleRatio, startEnergy, moveEnergy, plantEnergy);
+            WorldMap map = new WorldMap(this.width, this.height, this.initialAnimals, this.initialPlants, this.plantsGrowth, this.jungleRatio, this.startEnergy, this.moveEnergy, this.plantEnergy);
             this.mapList.add(map);
             this.mapStatsList.add(new MapStats(map));
         }
 
-        this.sidePanel = new SidePanel(sidebarWidth, boardHeight, mapStatsList);
+        this.sidePanel = new SidePanel(sidebarWidth, boardHeight, this.mapStatsList);
         this.sidePanel.addActionListener(this);
+        frame.add(this.sidePanel);
 
         for(int i = 0; i < this.mapNumber; i++) {
-            BoardPanel boardPanel = new BoardPanel(width, height, gap, boardWidth, boardHeight, mapList.get(i), mapStatsList.get(i));
+            BoardPanel boardPanel = new BoardPanel(this.width, this.height, gap, boardWidth, boardHeight, this.mapList.get(i), this.mapStatsList.get(i));
             this.boardPanelList.add(boardPanel);
             frame.add(boardPanel);
         }
 
-        frame.add(sidePanel);
-        frame.setSize(2*(boardWidth + sidebarWidth), boardHeight);
+//        frame.setSize((boardWidth + 10) * this.mapNumber + sidebarWidth, boardHeight + 10);
 
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setVisible(true);
+        frame.pack();
     }
 
     private String getParametersFile() {
@@ -99,22 +100,23 @@ public class Main implements ActionListener {
     public void run() throws InterruptedException {
         paused = new AtomicBoolean(false);
 
-        this.runnable = new Runnable() {
+        Runnable runnable = new Runnable() {
             @Override
             public void run() {
-                while(true) {
-                    if(paused.get()) {
-                        synchronized(threadObject) {
+                while (true) {
+                    if (paused.get()) {
+                        synchronized (threadObject) {
                             try {
                                 threadObject.wait();
-                            } catch (InterruptedException ignored) { }
+                            } catch (InterruptedException ignored) {
+                            }
                         }
                     }
 
-                    for (WorldMap map: mapList) {
+                    for (WorldMap map : mapList) {
                         map.run();
                     }
-                    for(BoardPanel boardPanel: boardPanelList) {
+                    for (BoardPanel boardPanel : boardPanelList) {
                         boardPanel.renderMap();
                     }
                     sidePanel.update();
@@ -144,9 +146,16 @@ public class Main implements ActionListener {
             this.paused.set(true);
         } else if(command.equals("RESUME")) {
             this.paused.set(false);
-            synchronized(threadObject) {
-                threadObject.notify();
+            synchronized(this.threadObject) {
+                this.threadObject.notify();
             }
+        }
+    }
+
+    public void stateChanged(ChangeEvent e) {
+        JSlider source = (JSlider) e.getSource();
+        if (!source.getValueIsAdjusting()) {
+            this.stepPause = source.getValue();
         }
     }
 }

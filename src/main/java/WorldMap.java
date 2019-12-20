@@ -2,52 +2,51 @@ import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
 import java.util.*;
-import java.util.stream.Collectors;
 
 import com.google.common.collect.ArrayListMultimap;
 
 public class WorldMap implements PropertyChangeListener {
-    public List<Animal> animals;
-    public ArrayListMultimap<Vector2D,IMapElement> mapElementMap = ArrayListMultimap.create();
-    public HashMap<Vector2D, MapSegment> freePositions;
-    public List<MapSegment> mapSegments;
+    private List<Animal> animals;
+    private ArrayListMultimap<Vector2D,IMapElement> mapElementMap;
+    private HashMap<Vector2D, MapSegment> freePositions;
+    private List<MapSegment> mapSegments;
 
-    public Vector2D lowerLeft, upperRight;
-    public int width, height;
-    public int epoch;
+    private Vector2D lowerLeft, upperRight;
+    private int width, height;
+    private int epoch;
 
-    public int plantsGrowth;
+    private int plantsGrowth;
 
-    public boolean tracking;
-    public int successorCount;
-    public int startEnergy;
-    public int moveEnergy;
+    private int startEnergy;
+    private int plantEnergy;
 
     private PropertyChangeSupport support;
 
     public WorldMap(int width, int height, int initialAnimals, int initialPlants, int plantsGrowth, double jungleRatio, int startEnergy, int moveEnergy, int plantEnergy) {
         this.lowerLeft = new Vector2D(0, 0);
         this.upperRight = new Vector2D(width - 1, height - 1);
-        this.width = width; this.height = height;
+        this.width = width;
+        this.height = height;
         this.plantsGrowth = plantsGrowth;
         this.epoch = 0;
 
         this.animals = new ArrayList<>();
+        this.mapElementMap = ArrayListMultimap.create();
         this.freePositions = new HashMap<>();
         this.mapSegments = new ArrayList<>();
         this.startEnergy = startEnergy;
-        this.moveEnergy = moveEnergy;
+        this.plantEnergy = plantEnergy;
 
         this.support = new PropertyChangeSupport(this);
 
         int jungleSize = (int) Math.sqrt((width * height) * jungleRatio);
-        Vector2D jungleLowerLeft = new Vector2D((lowerLeft.x + upperRight.x)/2 - jungleSize/2, (lowerLeft.y + upperRight.y)/2 - jungleSize/2);
-        Vector2D jungleUpperRight = new Vector2D((lowerLeft.x + upperRight.x)/2 + jungleSize/2, (lowerLeft.y + upperRight.y)/2 + jungleSize/2);
-        mapSegments.add(new MapSegment(jungleLowerLeft, jungleUpperRight, PlaceType.JUNGLE));
+        Vector2D jungleLowerLeft = new Vector2D((this.lowerLeft.x + this.upperRight.x)/2 - jungleSize/2, (this.lowerLeft.y + this.upperRight.y)/2 - jungleSize/2);
+        Vector2D jungleUpperRight = new Vector2D((this.lowerLeft.x + this.upperRight.x)/2 + jungleSize/2, (this.lowerLeft.y + this.upperRight.y)/2 + jungleSize/2);
+        this.mapSegments.add(new MapSegment(jungleLowerLeft, jungleUpperRight, PlaceType.JUNGLE));
 
-        for(int i = lowerLeft.x; i <= upperRight.x; i++) {
-            for(int j = lowerLeft.y; j <= upperRight.y; j++) {
-                freePositions.put(new Vector2D(i, j), getMapSegment(new Vector2D(i, j)));
+        for(int i = this.lowerLeft.x; i <= this.upperRight.x; i++) {
+            for(int j = this.lowerLeft.y; j <= this.upperRight.y; j++) {
+                this.freePositions.put(new Vector2D(i, j), this.getMapSegment(new Vector2D(i, j)));
             }
         }
 
@@ -61,52 +60,62 @@ public class WorldMap implements PropertyChangeListener {
 
     }
 
-    public boolean place(IMapElement mapElement) {
+    public List<Animal> getAnimals() { return this.animals; }
+
+    public ArrayListMultimap<Vector2D, IMapElement> getMapElementMap() { return this.mapElementMap; }
+
+    public int getEpoch() {
+        return this.epoch;
+    }
+
+    public int getStartEnergy() {
+        return this.startEnergy;
+    }
+
+    public void place(IMapElement mapElement) {
         if(mapElement instanceof Animal) {
             Animal animal = (Animal) mapElement;
             animal.addPropertyChangeListener(this);
-            animals.add(animal);
+            this.animals.add(animal);
         }
 
         this.add(mapElement);
-
-        return true;
     }
 
-    public void add(IMapElement mapElement) {
+    private void add(IMapElement mapElement) {
         Vector2D position = mapElement.getPosition();
 
-        mapElementMap.put(position, mapElement);
-        freePositions.remove(position);
+        this.mapElementMap.put(position, mapElement);
+        this.freePositions.remove(position);
     }
 
-    public void move(IMapElement mapElement, Vector2D oldPosition, Vector2D newPosition) {
-        mapElementMap.remove(oldPosition, mapElement);
-        if(mapElementMap.get(oldPosition).size() == 0) freePositions.put(oldPosition, getMapSegment(oldPosition));
+    private void move(IMapElement mapElement, Vector2D oldPosition, Vector2D newPosition) {
+        this.mapElementMap.remove(oldPosition, mapElement);
+        if(this.mapElementMap.get(oldPosition).size() == 0) this.freePositions.put(oldPosition, this.getMapSegment(oldPosition));
 
         if(newPosition != null) {
-            mapElementMap.put(newPosition, mapElement);
-            freePositions.remove(newPosition);
+            this.mapElementMap.put(newPosition, mapElement);
+            this.freePositions.remove(newPosition);
         }
     }
 
-    public void remove(IMapElement mapElement) {
+    private void remove(IMapElement mapElement) {
         Vector2D position = mapElement.getPosition();
 
-        mapElementMap.remove(position, mapElement);
-        if(mapElementMap.get(position).size() == 0) freePositions.put(position, getMapSegment(position));
+        this.mapElementMap.remove(position, mapElement);
+        if(this.mapElementMap.get(position).size() == 0) this.freePositions.put(position, this.getMapSegment(position));
     }
 
-    public Collection<IMapElement> objectAt(Vector2D position) {
-        return mapElementMap.get(position);
+    public Collection<IMapElement> mapElementsFrom(Vector2D position) {
+        return this.mapElementMap.get(position);
     }
 
     public boolean isOccupied(Vector2D position) {
-        return objectAt(position).size() != 0;
+        return this.mapElementsFrom(position).size() != 0;
     }
 
     public List<Animal> getSortedAnimalsFrom(Vector2D position) {
-        Collection<IMapElement> elementsOnPosition = objectAt(position);
+        Collection<IMapElement> elementsOnPosition = this.mapElementsFrom(position);
         List<Animal> animalsOnPosition = new ArrayList<>();
         for(IMapElement element: elementsOnPosition) {
             if(element instanceof Animal) animalsOnPosition.add((Animal) element);
@@ -121,7 +130,7 @@ public class WorldMap implements PropertyChangeListener {
     }
 
     public Food getFoodFrom(Vector2D position) {
-        for(IMapElement element: objectAt(position)) {
+        for(IMapElement element: this.mapElementsFrom(position)) {
             if(element instanceof Food)
                 return (Food) element;
         }
@@ -129,29 +138,36 @@ public class WorldMap implements PropertyChangeListener {
     }
 
     public Vector2D getRandomFreePosition() {
-        int count = freePositions.size();
+        int count = this.freePositions.size();
         if(count == 0) return null;
 
-        return (Vector2D) freePositions.keySet().toArray()[Utils.randomInt(0, count - 1)];
+        return (Vector2D) this.freePositions.keySet().toArray()[Utils.randomInt(0, count - 1)];
     }
 
     public Vector2D getRandomFreePositionFromSegment(MapSegment segment) {
-        List<Vector2D> positions = freePositions.entrySet()
-                .stream()
-                .filter(entry -> segment == null ? entry.getValue() == null : segment.equals(entry.getValue()))
-                .map(Map.Entry::getKey)
-                .collect(Collectors.toList());
+        List<Vector2D> positions = new ArrayList<>();
+        for(Map.Entry<Vector2D, MapSegment> entry: this.freePositions.entrySet()) {
+            if(entry.getValue() == segment) {
+                positions.add(entry.getKey());
+            }
+        }
+
         int count = positions.size();
         if(count == 0) return null;
 
         return positions.get(Utils.randomInt(0, count - 1));
     }
 
+    public Vector2D getAdjacentPosition(Vector2D position) {
+        Vector2D step = MapDirection.values()[Utils.randomInt(0, 7)].toUnitVector();
+        return this.calculateNewPosition(position, step);
+    }
+
     public Vector2D getAdjacentFreePosition(Vector2D position) {
         for(int i = 0; i < 8; i++) {
             Vector2D step = MapDirection.values()[i].toUnitVector();
-            Vector2D adjPosition = calculateNewPosition(position, step);
-            if(!isOccupied(adjPosition)) {
+            Vector2D adjPosition = this.calculateNewPosition(position, step);
+            if(!this.isOccupied(adjPosition)) {
                 return adjPosition;
             }
         }
@@ -159,43 +175,38 @@ public class WorldMap implements PropertyChangeListener {
     }
 
     public MapSegment getMapSegment(Vector2D position) {
-        for(MapSegment mapSegment: mapSegments) {
+        for(MapSegment mapSegment: this.mapSegments) {
             if(mapSegment.positionBelongs(position)) return mapSegment;
         }
         return null;
     }
 
     public PlaceType getMapSegmentType(Vector2D position) {
-        for(MapSegment mapSegment: mapSegments) {
-            if(mapSegment.positionBelongs(position)) return mapSegment.type;
-        }
-        return PlaceType.NORMAL;
+        MapSegment mapSegment = this.getMapSegment(position);
+        return mapSegment == null ? PlaceType.NORMAL : mapSegment.getType();
     }
 
     private void growPlants() {
-        for(int i = 0; i < plantsGrowth; i++) {
-            Vector2D newPosition = this.getRandomFreePositionFromSegment(null);
-            if(newPosition == null) return;
-            Food newPlant = new Food(newPosition, 50);
-            this.place(newPlant);
-        }
+        int mapSegmentsCount = this.mapSegments.size();
 
-        for(MapSegment segment: mapSegments) {
-            for(int i = 0; i < plantsGrowth; i++) {
+        for(int i = 0; i <= mapSegmentsCount; i++) {
+            MapSegment segment = i == mapSegmentsCount ? null : this.mapSegments.get(i);
+            for(int j = 0; j < this.plantsGrowth; j++) {
                 Vector2D newPosition = this.getRandomFreePositionFromSegment(segment);
-                if(newPosition == null) return;
-                Food newPlant = new Food(newPosition, 50);
+                if(newPosition == null) break;
+                Food newPlant = new Food(newPosition, this.plantEnergy);
                 this.place(newPlant);
             }
+
         }
     }
 
     private void removeDeadAnimals() {
-        Iterator<Animal> iter = animals.iterator();
+        Iterator<Animal> iter = this.animals.iterator();
         while(iter.hasNext()) {
             Animal animal = iter.next();
             if(animal.getEnergy() <= 0) {
-                support.firePropertyChange("animalDied", null, animal);
+                this.support.firePropertyChange("animalDied", null, animal);
                 animal.removePropertyChangeListener(this);
                 this.remove(animal);
                 iter.remove();
@@ -204,7 +215,7 @@ public class WorldMap implements PropertyChangeListener {
     }
 
     private void animalsMove() {
-        for(Animal animal: animals) {
+        for(Animal animal: this.animals) {
             animal.move();
         }
     }
@@ -213,11 +224,11 @@ public class WorldMap implements PropertyChangeListener {
         ArrayList<Vector2D> positionsProcessed = new ArrayList<>();
         ArrayList<Animal> newAnimals = new ArrayList<>();
 
-        for(Animal animal: animals) {
+        for(Animal animal: this.animals) {
             Vector2D currentPosition = animal.getPosition();
             if(!positionsProcessed.contains(currentPosition)) {
-                List<Animal> animalsOnPosition = getSortedAnimalsFrom(currentPosition);
-                Food foodOnPosition = getFoodFrom(currentPosition);
+                List<Animal> animalsOnPosition = this.getSortedAnimalsFrom(currentPosition);
+                Food foodOnPosition = this.getFoodFrom(currentPosition);
 
                 if(foodOnPosition != null) {
                     int i = 0;
@@ -233,8 +244,10 @@ public class WorldMap implements PropertyChangeListener {
                 }
 
                 if(animalsOnPosition.size() > 1) {
-                    Animal newAnimal = animalsOnPosition.get(0).reproduceWith(animalsOnPosition.get(1));
-                    if(newAnimal != null) newAnimals.add(newAnimal);
+                    Animal parent1 = animalsOnPosition.get(0), parent2 = animalsOnPosition.get(1);
+                    if(parent1.getEnergy() > this.startEnergy / 2 && parent2.getEnergy() > this.startEnergy / 2) {
+                        newAnimals.add(parent1.reproduceWith(parent2));
+                    }
                 }
 
                 positionsProcessed.add(currentPosition);
@@ -243,10 +256,7 @@ public class WorldMap implements PropertyChangeListener {
 
         for(Animal newAnimal: newAnimals) {
             this.place(newAnimal);
-            support.firePropertyChange("animalBorn", null, newAnimal);
-            if(tracking && newAnimal.isSuccessor) {
-                successorCount++;
-            }
+            this.support.firePropertyChange("animalBorn", null, newAnimal);
         }
     }
 
@@ -256,22 +266,22 @@ public class WorldMap implements PropertyChangeListener {
         this.animalsMove();
         this.animalsAct();
         this.epoch++;
-        support.firePropertyChange("dayEnd", null, null);
+        this.support.firePropertyChange("dayEnd", null, null);
     }
 
     public Vector2D calculateNewPosition(Vector2D position, Vector2D step) {
         Vector2D newPosition = position.add(step);
 
-        if(newPosition.x < lowerLeft.x) {
-            newPosition = newPosition.add(new Vector2D(width, 0));
-        } else if(newPosition.x > upperRight.x) {
-            newPosition = newPosition.add(new Vector2D(-width, 0));
+        if(newPosition.x < this.lowerLeft.x) {
+            newPosition = newPosition.add(new Vector2D(this.width, 0));
+        } else if(newPosition.x > this.upperRight.x) {
+            newPosition = newPosition.add(new Vector2D(-this.width, 0));
         }
 
-        if(newPosition.y < lowerLeft.y) {
-            newPosition = newPosition.add(new Vector2D(0, height));
-        } else if(newPosition.y > upperRight.y) {
-            newPosition = newPosition.add(new Vector2D(0, -height));
+        if(newPosition.y < this.lowerLeft.y) {
+            newPosition = newPosition.add(new Vector2D(0, this.height));
+        } else if(newPosition.y > this.upperRight.y) {
+            newPosition = newPosition.add(new Vector2D(0, -this.height));
         }
 
         return newPosition;
@@ -289,10 +299,10 @@ public class WorldMap implements PropertyChangeListener {
     }
 
     public void addPropertyChangeListener(PropertyChangeListener pcl) {
-        support.addPropertyChangeListener(pcl);
+        this.support.addPropertyChangeListener(pcl);
     }
 
     public void removePropertyChangeListener(PropertyChangeListener pcl) {
-        support.removePropertyChangeListener(pcl);
+        this.support.removePropertyChangeListener(pcl);
     }
 }

@@ -1,6 +1,6 @@
 public class MapSegment {
-    public Vector2D lowerLeft, upperRight;
-    public PlaceType type;
+    private Vector2D lowerLeft, upperRight;
+    private PlaceType type;
 
     public MapSegment(Vector2D lowerLeft, Vector2D upperRight, PlaceType type) {
         this.lowerLeft = lowerLeft;
@@ -9,6 +9,8 @@ public class MapSegment {
     }
 
     public boolean positionBelongs(Vector2D position) {
-        return lowerLeft.precedes(position) && upperRight.follows(position);
+        return this.lowerLeft.precedes(position) && this.upperRight.follows(position);
     }
+
+    public PlaceType getType() { return this.type; }
 }

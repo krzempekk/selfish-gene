@@ -11,8 +11,4 @@ public class Food implements IMapElement {
 
     @Override
     public Vector2D getPosition() { return position; }
-
-    public String toString() {
-        return "x";
-    }
 }

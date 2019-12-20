@@ -1,60 +1,63 @@
-import com.sun.xml.internal.ws.policy.EffectiveAlternativeSelector;
-
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.util.*;
 
 public class MapStats implements PropertyChangeListener {
-    public WorldMap map;
-    public Animal trackedAnimal;
+    private WorldMap map;
+    private Animal trackedAnimal;
 
-    public Map<MapStatsType, Integer> mediumStats;
-    public Map<MapStatsType, Integer> currentStats;
+    private Map<MapStatsType, Integer> mediumStats;
+    private Map<MapStatsType, Integer> currentStats;
 
-    public Map<Genome, Integer> genomesLiving;
-    public Map<Genome, Integer> genomes;
+    private Map<Genome, Integer> genomes;
 
-    public int trackedLifespan = 0;
-    public int lifespanSum = 0;
-    public int deadAnimals = 0;
+    private int deadAnimals;
+    private int deadAnimalsLifespanSum;
+    private int trackedAnimalDeathEpoch;
+    private int successorCount;
 
     MapStats(WorldMap map) {
         this.map = map;
-        map.addPropertyChangeListener(this);
+        this.map.addPropertyChangeListener(this);
         this.mediumStats = new HashMap<>();
         this.currentStats = new HashMap<>();
-        this.genomesLiving = new HashMap<>();
         this.genomes = new HashMap<>();
 
+        this.trackedAnimalDeathEpoch = 0;
+        this.deadAnimals = 0;
+        this.deadAnimalsLifespanSum = 0;
+        this.successorCount = 0;
+
         for (MapStatsType stat : MapStatsType.values()) {
-            currentStats.put(stat, 0);
-            mediumStats.put(stat, 0);
+            this.currentStats.put(stat, 0);
+            this.mediumStats.put(stat, 0);
         }
     }
 
-    public Object calculateStat(MapStatsType stat) {
+    public int calculateStat(MapStatsType stat) {
+        List<Animal> mapAnimals = this.map.getAnimals();
         switch (stat) {
             case animalsNumber:
-                return map.animals.size();
+                return mapAnimals.size();
             case plantsNumber:
-                return map.mapElementMap.size() - map.animals.size();
+                return this.map.getMapElementMap().size() - mapAnimals.size();
             case averageEnergy:
-                if(map.animals.size() == 0) return 0;
+                if(mapAnimals.size() == 0) return 0;
                 int energySum = 0;
-                for(Animal animal: map.animals) {
-                    energySum += animal.energy;
+                for(Animal animal: mapAnimals) {
+                    energySum += animal.getEnergy();
                 }
-                return energySum / map.animals.size();
+                return energySum / mapAnimals.size();
             case averageLifespan:
-                if(deadAnimals == 0) return 0;
-                return lifespanSum / deadAnimals;
+                if(this.deadAnimals == 0) return 0;
+                return this.deadAnimalsLifespanSum / this.deadAnimals;
             case averageChildCount:
-                if(map.animals.size() == 0) return 0;
+                if(mapAnimals.size() == 0) return 0;
                 int childCount = 0;
-                for(Animal animal: map.animals) {
-                    childCount += animal.childCount;
+                for(Animal animal: mapAnimals) {
+                    childCount += animal.getChildCount();
                 }
-                return childCount / map.animals.size();
+                return childCount / mapAnimals.size();
             default:
                 return -1;
         }
@@ -62,110 +65,139 @@ public class MapStats implements PropertyChangeListener {
 
     public void calculateStats() {
         for (MapStatsType stat : MapStatsType.values()) {
-            int statValue = (int) calculateStat(stat);
-            int currentValue = mediumStats.get(stat);
-            currentStats.put(stat, statValue);
-            mediumStats.put(stat, currentValue + statValue);
+            int statValue = this.calculateStat(stat);
+            int currentValue = this.mediumStats.get(stat);
+            this.currentStats.put(stat, statValue);
+            this.mediumStats.put(stat, currentValue + statValue);
         }
     }
 
-    public String getDominatingGenome() {
-        if(genomes.size() == 0) return null;
-        Map.Entry<Genome, Integer> maxEntry = Collections.max(genomes.entrySet(), new Comparator<Map.Entry<Genome, Integer>>() {
+    public Genome getDominatingGenome() {
+        if(this.genomes.size() == 0) return null;
+        Map.Entry<Genome, Integer> maxEntry = Collections.max(this.genomes.entrySet(), new Comparator<Map.Entry<Genome, Integer>>() {
             public int compare(Map.Entry<Genome, Integer> e1, Map.Entry<Genome, Integer> e2) {
                 return e1.getValue().compareTo(e2.getValue());
             }
         });
-        return maxEntry.getKey().toString();
+        return maxEntry.getKey();
+    }
+
+    public List<Animal> getAnimalsWithDominatingGenome() {
+        List<Animal> animals = new ArrayList<>();
+        Genome genome = this.getDominatingGenome();
+        for(Animal animal: this.map.getAnimals()) {
+            if(animal.getGenome().equals(genome)) {
+                animals.add(animal);
+            }
+        }
+        return animals;
     }
 
     public int getEpoch() {
-        return map.epoch;
+        return this.map.getEpoch();
     }
 
     public int getStat(MapStatsType stat) {
-        return currentStats.get(stat);
+        return this.currentStats.get(stat);
     }
 
     public int getAvgStat(MapStatsType stat) {
-        return mediumStats.get(stat) / map.epoch;
+        return this.mediumStats.get(stat) / this.map.getEpoch();
     }
 
     public boolean isTracking() {
-        return trackedAnimal != null;
+        return this.trackedAnimal != null;
     }
 
     public void untrackAnimal() {
-        trackedLifespan = 0;
-        trackedAnimal.isTracked = false;
-        trackedAnimal = null;
-        for(Animal animal: map.animals) {
-            animal.isSuccessor = false;
+        this.trackedAnimal.setTracked(false);
+        this.trackedAnimal = null;
+        this.trackedAnimalDeathEpoch = 0;
+        for(Animal animal: this.map.getAnimals()) {
+            animal.setSuccessor(false);
         }
-        map.tracking = false;
-        map.successorCount = 0;
     }
 
     public void trackAnimal(Vector2D position) {
-        if(trackedAnimal != null) {
-            untrackAnimal();
+        if(this.trackedAnimal != null) {
+            this.untrackAnimal();
         }
-        map.tracking = true;
-        List<Animal> animals = map.getSortedAnimalsFrom(position);
+        this.successorCount = 0;
+        List<Animal> animals = this.map.getSortedAnimalsFrom(position);
         if(animals.size() > 0) {
-            trackedAnimal = animals.get(0);
-            trackedAnimal.isSuccessor = true;
-            trackedAnimal.isTracked = true;
+            this.trackedAnimal = animals.get(0);
+            this.trackedAnimal.setSuccessor(true);
+            this.trackedAnimal.setTracked(true);
         }
     }
 
     public Vector2D getTrackedPosition() {
-        return trackedAnimal == null ? null : trackedAnimal.getPosition();
+        return this.trackedAnimal == null ? null : this.trackedAnimal.getPosition();
     }
 
-    public String getTrackedGenome() {
-        if(trackedAnimal != null) {
-            String genome = "";
-            for(int i = 0; i < trackedAnimal.genome.geneCount.length; i++) {
-                genome = genome + i + ":" + trackedAnimal.genome.geneCount[i] + ",";
-            }
-            return genome;
-        }
-        return null;
-    }
+//    public String formatGenome(Genome genome) {
+//        StringBuilder formattedGenome = new StringBuilder();
+//        int[] geneCount = genome.getGeneCount();
+//        for(int i = 0; i < geneCount.length; i++) {
+//            formattedGenome.append(i).append(":").append(geneCount[i]).append(",");
+//        }
+//        return formattedGenome.toString();
+//    }
+//
+//    public String getDominatingGenomeString() {
+//        return this.formatGenome(this.getDominatingGenome());
+//    }
+//
+//    public String getTrackedGenomeString() {
+//        if(this.trackedAnimal != null) {
+//            return this.formatGenome(this.trackedAnimal.getGenome());
+//        }
+//        return null;
+//    }
+
+    public Animal getTrackedAnimal() { return this.trackedAnimal; }
 
     public int getTrackedChildCount() {
-        return trackedAnimal.childCount;
+        return this.trackedAnimal.getChildCount();
     }
 
     public int getTrackedSuccessorsCount() {
-        return map.successorCount;
+        return this.successorCount;
     }
 
     public int getTrackedDeathEpoch() {
-        return trackedLifespan;
+        return this.trackedAnimalDeathEpoch;
     }
 
     @Override
     public void propertyChange(PropertyChangeEvent evt) {
         String event = evt.getPropertyName();
-        if (event.equals("dayEnd")) {
-            calculateStats();
-        } else if(event.equals("animalDied")) {
-            Animal animal = (Animal) evt.getNewValue();
-            if(animal == trackedAnimal) {
-                trackedLifespan = map.epoch - trackedAnimal.epochBorn;
+        switch (event) {
+            case "dayEnd":
+                this.calculateStats();
+                break;
+            case "animalDied": {
+                Animal animal = (Animal) evt.getNewValue();
+                if (animal == this.trackedAnimal) {
+                    this.trackedAnimalDeathEpoch = this.map.getEpoch();
+                }
+                this.deadAnimalsLifespanSum += this.map.getEpoch() - animal.getEpochBorn();
+                this.deadAnimals++;
+                Integer currentGenomeCount = this.genomes.get(animal.getGenome());
+                if (currentGenomeCount != null) {
+                    this.genomes.put(animal.getGenome(), currentGenomeCount - 1);
+                }
+                break;
             }
-            lifespanSum += map.epoch - animal.epochBorn;
-            deadAnimals++;
-            Integer currentGenomeCount = genomes.get(animal.genome);
-            if(currentGenomeCount != null) {
-                genomes.put(animal.genome, currentGenomeCount - 1);
+            case "animalBorn": {
+                Animal animal = (Animal) evt.getNewValue();
+                Integer currentGenomeCount = this.genomes.get(animal.getGenome());
+                this.genomes.put(animal.getGenome(), currentGenomeCount == null ? 1 : currentGenomeCount + 1);
+                if (animal.getSuccessor()) {
+                    this.successorCount++;
+                }
+                break;
             }
-        } else if(event.equals("animalBorn")) {
-            Animal animal = (Animal) evt.getNewValue();
-            Integer currentGenomeCount = genomes.get(animal.genome);
-            genomes.put(animal.genome, currentGenomeCount == null ? 1 : currentGenomeCount + 1);
         }
     }
 }
