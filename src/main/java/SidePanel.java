@@ -1,55 +1,153 @@
+import org.json.JSONObject;
+
 import javax.swing.*;
+import javax.swing.table.AbstractTableModel;
+import javax.swing.table.TableModel;
+import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.util.Arrays;
-import java.util.HashMap;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
 
 public class SidePanel extends JPanel implements ActionListener {
     public JButton pauseButton;
+    public JButton saveButton;
 
-    public Map<String, JLabel> labels;
-    public MapStats mapStats;
+    List<MapStats> mapStatsList;
 
-    public JLabel selectedAnimalLabel;
+    JTable statTable;
+    JTable trackedAnimalTable;
+    JScrollPane statTablePane;
+    JScrollPane trackedAnimalTablePane;
 
-    SidePanel(int sidebarWidth, int boardHeight, MapStats mapStats) {
+    SidePanel(int sidebarWidth, int boardHeight, List<MapStats> mapStatsList) {
+        this.mapStatsList = mapStatsList;
+
         this.setSize(sidebarWidth, boardHeight);
         this.setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+
+        TableModel statTableModel = new AbstractTableModel() {
+            @Override
+            public String getColumnName(int col) {
+                if(col == 0) return "Stat name";
+                return  "Map " + col;
+            }
+
+            @Override
+            public int getRowCount() {
+                return MapStatsType.values().length;
+            }
+
+            @Override
+            public int getColumnCount() {
+                return mapStatsList.size() + 1;
+            }
+
+            @Override
+            public Object getValueAt(int row, int col) {
+                MapStatsType stat = MapStatsType.values()[row];
+                if(col == 0) {
+                    return stat.toString();
+                }
+                return mapStatsList.get(col - 1).getStat(stat);
+            }
+        };
+
+        statTable = new JTable(statTableModel);
+
+        statTablePane = new JScrollPane(statTable);
+        statTablePane.setPreferredSize(new Dimension(400, 150));
+
+        TableModel trackedAnimalsTableModel = new AbstractTableModel() {
+            @Override
+            public String getColumnName(int col) {
+                if(col == 0) return "Stat name";
+                return mapStatsList.get(col - 1).isTracking() ? "Map " + col : "No selected animal";
+            }
+
+            @Override
+            public int getRowCount() {
+                return 3;
+            }
+
+            @Override
+            public int getColumnCount() {
+                return mapStatsList.size() + 1;
+            }
+
+            @Override
+            public Object getValueAt(int row, int col) {
+                if(col == 0) {
+                    switch (row) {
+                        case 0:
+                            return "Children count";
+                        case 1:
+                            return "Successors count";
+                        case 2:
+                            return "Epoch died";
+                    }
+                }
+                MapStats mapStats = mapStatsList.get(col - 1);
+                if(mapStats.isTracking()) {
+                    switch (row) {
+                        case 0:
+                            return mapStats.getTrackedChildCount();
+                        case 1:
+                            return mapStats.getTrackedSuccessorsCount();
+                        case 2:
+                            return mapStats.getTrackedDeathEpoch();
+                    }
+                }
+                return null;
+            }
+        };
+
+        trackedAnimalTable = new JTable(trackedAnimalsTableModel);
+
+        trackedAnimalTablePane = new JScrollPane(trackedAnimalTable);
+        trackedAnimalTablePane.setPreferredSize(new Dimension(400, 150));
+
+        this.add(new JLabel("Epoch number " + mapStatsList.get(0).getEpoch()));
+        this.add(statTablePane);
+        this.add(trackedAnimalTablePane);
 
         this.pauseButton = new JButton("PAUSE");
         pauseButton.addActionListener(this);
         this.add(pauseButton);
 
-        this.mapStats = mapStats;
-
-        this.labels = new HashMap<>();
-
-        List<String> labelNames = Arrays.asList("animalsNumber", "plantsNumber", "dominatingGene", "averageEnergy", "averageLifespan", "averageChildCount");
-
-        for(String name: labelNames) {
-            JLabel label = new JLabel(name + ": ");
-            this.labels.put(name, label);
-            this.add(label);
-        }
-
-        this.selectedAnimalLabel = new JLabel("nothing selected");
-        this.add(selectedAnimalLabel);
-    }
-
-    public void selectAnimal(int x, int y) {
-        this.selectedAnimalLabel.setText(this.mapStats.getGenome(x, y).toString());
+        this.saveButton = new JButton("SAVE");
+        saveButton.addActionListener(this);
+        this.add(saveButton);
     }
 
     public void update() {
-        for(Map.Entry<String, JLabel> entry: labels.entrySet()) {
-            entry.getValue().setText(entry.getKey() + ": "  + mapStats.getStat(entry.getKey()));
-        }
+        statTable.repaint();
+        trackedAnimalTable.repaint();
     }
 
     public void addActionListener(ActionListener acl) {
         pauseButton.addActionListener(acl);
+    }
+
+    public void saveStatsToFile() {
+        JSONObject statObject = new JSONObject();
+        List<JSONObject> statList = new ArrayList<>();
+        for(MapStats mapStats: mapStatsList) {
+            JSONObject stats = new JSONObject();
+            for(MapStatsType mapStat: MapStatsType.values()) {
+                stats.put(String.valueOf(mapStat), mapStats.getAvgStat(mapStat));
+            }
+            statList.add(stats);
+        }
+        statObject.put("maps", statList);
+        try (FileWriter file = new FileWriter("stats.json")) {
+            file.write(statObject.toString());
+            file.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -59,7 +157,13 @@ public class SidePanel extends JPanel implements ActionListener {
             this.pauseButton.setText("RESUME");
         } else if(command.equals("RESUME")) {
             this.pauseButton.setText("PAUSE");
+        } else if(command.equals("SAVE")) {
+            this.saveStatsToFile();
         }
-
     }
+
+    public void animalSelected(int mapIndex, Vector2D position) {
+        mapStatsList.get(mapIndex).trackAnimal(position);
+    }
+
 }

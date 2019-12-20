@@ -4,5 +4,10 @@
   "startEnergy": 40,
   "moveEnergy": 1,
   "plantEnergy": 10,
-  "jungleRatio": 0.3
+  "jungleRatio": 0.1,
+  "initialAnimals": 30,
+  "initialPlants": 30,
+  "plantsGrowth": 1,
+  "stepPause": 50,
+  "mapNumber": 2
 }

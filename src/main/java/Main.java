@@ -6,26 +6,26 @@ import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 import javax.swing.*;
 import org.json.*;
+import java.util.List;
 
 public class Main implements ActionListener {
-    public int gap = 0;
-    public int boardWidth = 1000, boardHeight = 1000, sidebarWidth = 400;
     public int stepSkip = 1;
 
-    public WorldMap map;
-    public MapStats mapStats;
-
-    public BoardPanel boardPanel;
     public SidePanel sidePanel;
+
+    public List<WorldMap> mapList;
+    public List<MapStats> mapStatsList;
+    public List<BoardPanel> boardPanelList;
 
     public int width, height, startEnergy, moveEnergy, plantEnergy;
     public double jungleRatio;
 
-    public int initialAnimals = 10, initialPlants = 10, plantsGrowth = 1, stepPause = 200;
+    public int initialAnimals, initialPlants, plantsGrowth, stepPause, mapNumber;
 
     private AtomicBoolean paused;
 
@@ -35,20 +35,35 @@ public class Main implements ActionListener {
     Main() {
         this.readParameters();
 
+        int boardHeight = Math.min(height * 50, 500);
+        int boardWidth = (int) (boardHeight * ((double) width / height));
+
+        int sidebarWidth = 400, gap = 0;
+
         JFrame frame = new JFrame();
         frame.setLayout(new FlowLayout(FlowLayout.LEFT, 0,0 ));
 
-        this.map = new WorldMap(width, height, initialAnimals, initialPlants, plantsGrowth, jungleRatio, startEnergy, moveEnergy, plantEnergy);
-        this.mapStats = new MapStats(map);
+        this.mapList = new ArrayList<>();
+        this.mapStatsList = new ArrayList<>();
+        this.boardPanelList = new ArrayList<>();
 
-        this.sidePanel = new SidePanel(sidebarWidth, boardHeight, mapStats);
+        for(int i = 0; i < this.mapNumber; i++) {
+            WorldMap map = new WorldMap(width, height, initialAnimals, initialPlants, plantsGrowth, jungleRatio, startEnergy, moveEnergy, plantEnergy);
+            this.mapList.add(map);
+            this.mapStatsList.add(new MapStats(map));
+        }
+
+        this.sidePanel = new SidePanel(sidebarWidth, boardHeight, mapStatsList);
         this.sidePanel.addActionListener(this);
 
-        this.boardPanel = new BoardPanel(width, height, gap, boardWidth, boardHeight, map, this.sidePanel);
+        for(int i = 0; i < this.mapNumber; i++) {
+            BoardPanel boardPanel = new BoardPanel(i, width, height, gap, boardWidth, boardHeight, mapList.get(i), sidePanel);
+            this.boardPanelList.add(boardPanel);
+            frame.add(boardPanel);
+        }
 
-        frame.add(boardPanel);
         frame.add(sidePanel);
-        frame.setSize(boardWidth + sidebarWidth, boardHeight);
+        frame.setSize(2*(boardWidth + sidebarWidth), boardHeight);
 
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setVisible(true);
@@ -74,6 +89,11 @@ public class Main implements ActionListener {
         moveEnergy = params.getInt("moveEnergy");
         plantEnergy = params.getInt("plantEnergy");
         jungleRatio = params.getDouble("jungleRatio");
+        initialAnimals = params.getInt("initialAnimals");
+        initialPlants = params.getInt("initialPlants");
+        plantsGrowth = params.getInt("plantsGrowth");
+        stepPause = params.getInt("stepPause");
+        mapNumber = params.getInt("mapNumber");
     }
 
     public void run() throws InterruptedException {
@@ -91,8 +111,12 @@ public class Main implements ActionListener {
                         }
                     }
 
-                    map.run();
-                    boardPanel.renderMap();
+                    for (WorldMap map: mapList) {
+                        map.run();
+                    }
+                    for(BoardPanel boardPanel: boardPanelList) {
+                        boardPanel.renderMap();
+                    }
                     sidePanel.update();
 
                     try {

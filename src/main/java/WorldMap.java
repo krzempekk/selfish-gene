@@ -1,5 +1,6 @@
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
+import java.beans.PropertyChangeSupport;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -15,7 +16,12 @@ public class WorldMap implements PropertyChangeListener {
     public int width, height;
     public int epoch;
 
-    private int plantsGrowth;
+    public int plantsGrowth;
+
+    public boolean tracking;
+    public int successorCount;
+
+    private PropertyChangeSupport support;
 
     public WorldMap(int width, int height, int initialAnimals, int initialPlants, int plantsGrowth, double jungleRatio, int startEnergy, int moveEnergy, int plantEnergy) {
         this.lowerLeft = new Vector2D(0, 0);
@@ -27,6 +33,8 @@ public class WorldMap implements PropertyChangeListener {
         this.animals = new ArrayList<>();
         this.freePositions = new HashMap<>();
         this.mapSegments = new ArrayList<>();
+
+        this.support = new PropertyChangeSupport(this);
 
         int jungleSize = (int) Math.sqrt((width * height) * jungleRatio);
         Vector2D jungleLowerLeft = new Vector2D((lowerLeft.x + upperRight.x)/2 - jungleSize/2, (lowerLeft.y + upperRight.y)/2 - jungleSize/2);
@@ -85,12 +93,35 @@ public class WorldMap implements PropertyChangeListener {
         if(mapElementMap.get(position).size() == 0) freePositions.put(position, getMapSegment(position));
     }
 
+    public Collection<IMapElement> objectAt(Vector2D position) {
+        return mapElementMap.get(position);
+    }
+
     public boolean isOccupied(Vector2D position) {
         return objectAt(position).size() != 0;
     }
 
-    public Collection<IMapElement> objectAt(Vector2D position) {
-        return mapElementMap.get(position);
+    public List<Animal> getSortedAnimalsFrom(Vector2D position) {
+        Collection<IMapElement> elementsOnPosition = objectAt(position);
+        List<Animal> animalsOnPosition = new ArrayList<>();
+        for(IMapElement element: elementsOnPosition) {
+            if(element instanceof Animal) animalsOnPosition.add((Animal) element);
+        }
+        animalsOnPosition.sort((Animal t1, Animal t2) -> {
+            int energy1 = t1.getEnergy(), energy2 = t2.getEnergy();
+            if (energy1 < energy2) return 1;
+            else if (energy1 == energy2) return 0;
+            return -1;
+        });
+        return animalsOnPosition;
+    }
+
+    public Food getFoodFrom(Vector2D position) {
+        for(IMapElement element: objectAt(position)) {
+            if(element instanceof Food)
+                return (Food) element;
+        }
+        return null;
     }
 
     public Vector2D getRandomFreePosition() {
@@ -160,6 +191,7 @@ public class WorldMap implements PropertyChangeListener {
         while(iter.hasNext()) {
             Animal animal = iter.next();
             if(animal.getEnergy() <= 0) {
+                support.firePropertyChange("animalDied", null, animal);
                 animal.removePropertyChangeListener(this);
                 this.remove(animal);
                 iter.remove();
@@ -179,23 +211,9 @@ public class WorldMap implements PropertyChangeListener {
 
         for(Animal animal: animals) {
             Vector2D currentPosition = animal.getPosition();
-            List<IMapElement> elementsOnPosition = mapElementMap.get(currentPosition);
-            if(!positionsProcessed.contains(currentPosition) && elementsOnPosition.size() != 0) {
-
-                List<Animal> animalsOnPosition = new ArrayList<>();
-                Food foodOnPosition = null;
-
-                for(IMapElement element: elementsOnPosition) {
-                    if(element instanceof Food) foodOnPosition = (Food) element;
-                    else if(element instanceof Animal) animalsOnPosition.add((Animal) element);
-                }
-
-                animalsOnPosition.sort((Animal t1, Animal t2) -> {
-                    int energy1 = t1.getEnergy(), energy2 = t2.getEnergy();
-                    if (energy1 < energy2) return 1;
-                    else if (energy1 == energy2) return 0;
-                    return -1;
-                });
+            if(!positionsProcessed.contains(currentPosition)) {
+                List<Animal> animalsOnPosition = getSortedAnimalsFrom(currentPosition);
+                Food foodOnPosition = getFoodFrom(currentPosition);
 
                 if(foodOnPosition != null) {
                     int i = 0;
@@ -221,6 +239,10 @@ public class WorldMap implements PropertyChangeListener {
 
         for(Animal newAnimal: newAnimals) {
             this.place(newAnimal);
+            support.firePropertyChange("animalBorn", null, newAnimal);
+            if(tracking && newAnimal.isSuccessor) {
+                successorCount++;
+            }
         }
     }
 
@@ -230,17 +252,7 @@ public class WorldMap implements PropertyChangeListener {
         this.animalsMove();
         this.animalsAct();
         this.epoch++;
-    }
-
-    @Override
-    public void propertyChange(PropertyChangeEvent evt) {
-        if(evt.getPropertyName().equals("position")) {
-            Vector2D oldPosition = (Vector2D) evt.getOldValue();
-            Vector2D newPosition = (Vector2D) evt.getNewValue();
-            IMapElement source = (IMapElement) evt.getSource();
-
-            this.move(source, oldPosition, newPosition);
-        }
+        support.firePropertyChange("dayEnd", null, null);
     }
 
     public Vector2D calculateNewPosition(Vector2D position, Vector2D step) {
@@ -259,5 +271,24 @@ public class WorldMap implements PropertyChangeListener {
         }
 
         return newPosition;
+    }
+
+    @Override
+    public void propertyChange(PropertyChangeEvent evt) {
+        if(evt.getPropertyName().equals("position")) {
+            Vector2D oldPosition = (Vector2D) evt.getOldValue();
+            Vector2D newPosition = (Vector2D) evt.getNewValue();
+            IMapElement source = (IMapElement) evt.getSource();
+
+            this.move(source, oldPosition, newPosition);
+        }
+    }
+
+    public void addPropertyChangeListener(PropertyChangeListener pcl) {
+        support.addPropertyChangeListener(pcl);
+    }
+
+    public void removePropertyChangeListener(PropertyChangeListener pcl) {
+        support.removePropertyChangeListener(pcl);
     }
 }

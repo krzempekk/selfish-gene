@@ -1,12 +1,8 @@
-import java.util.Collections;
-import java.util.List;
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
 
-
 public class Animal implements IMapElement {
     public Genome genome;
-//    private double[] directionProbability; // cumulative distribution
     private Vector2D position;
     private MapDirection direction;
     private WorldMap worldMap;
@@ -17,12 +13,13 @@ public class Animal implements IMapElement {
     private int moveEnergy;
     public int epochBorn;
     public int childCount;
+    public boolean isSuccessor;
 
     public Animal(Vector2D position, WorldMap worldMap, int energy, int moveEnergy) {
-        this(new Genome(), position, worldMap, energy, moveEnergy);
+        this(new Genome(), position, worldMap, energy, moveEnergy, false);
     }
 
-    public Animal(Genome genome, Vector2D position, WorldMap worldMap, int energy, int moveEnergy) {
+    public Animal(Genome genome, Vector2D position, WorldMap worldMap, int energy, int moveEnergy, boolean isSuccessor) {
         this.genome = genome;
         this.position = position;
         this.direction = MapDirection.values()[Utils.randomInt(0, 7)];
@@ -33,24 +30,8 @@ public class Animal implements IMapElement {
         this.moveEnergy = moveEnergy;
         this.epochBorn = worldMap.epoch;
         this.childCount = 0;
-
-//        this.convertGenomeToPhenotype();
+        this.isSuccessor = isSuccessor;
     }
-
-//    private void convertGenomeToPhenotype() {
-//        List<Integer> directionPreference = this.genome.sequence;
-//        directionProbability = new double[8];
-//        for(int i = 0; i < 8; i++) {
-//            directionProbability[i] = (double) Collections.frequency(directionPreference, i) / directionPreference.size() + (i > 0 ? directionProbability[i - 1] : 0);
-//        }
-//    }
-
-//    private void turn() {
-//        double r = Math.random();
-//        int angle = 0;
-//        while(directionProbability[angle] < r) { angle++; }
-//        this.direction = this.direction.turn(angle);
-//    }
 
     private void turn() {
          int angle = this.genome.sequence.get(Utils.randomInt(0, Genome.SEQ_LEN - 1));
@@ -81,7 +62,9 @@ public class Animal implements IMapElement {
             this.childCount++;
             partner.childCount++;
 
-            return new Animal(newGenome, newPosition, worldMap, newEnergy, this.moveEnergy);
+            boolean isChildSuccessor = this.isSuccessor || partner.isSuccessor;
+
+            return new Animal(newGenome, newPosition, worldMap, newEnergy, this.moveEnergy, isChildSuccessor);
         }
         return null;
     }

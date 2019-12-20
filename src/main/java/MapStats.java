@@ -1,43 +1,55 @@
-import java.util.List;
+import com.sun.xml.internal.ws.policy.EffectiveAlternativeSelector;
 
-public class MapStats {
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
+import java.util.*;
+
+public class MapStats implements PropertyChangeListener {
     public WorldMap map;
+    public Animal trackedAnimal;
+
+    public Map<MapStatsType, Integer> mediumStats;
+    public Map<MapStatsType, Integer> currentStats;
+
+    public Map<Genome, Integer> genomesLiving;
+    public Map<Genome, Integer> genomes;
+
+    public int trackedLifespan = 0;
+    public int lifespanSum = 0;
+    public int deadAnimals = 0;
 
     MapStats(WorldMap map) {
         this.map = map;
+        map.addPropertyChangeListener(this);
+        this.mediumStats = new HashMap<>();
+        this.currentStats = new HashMap<>();
+        this.genomesLiving = new HashMap<>();
+        this.genomes = new HashMap<>();
+
+        for (MapStatsType stat : MapStatsType.values()) {
+            currentStats.put(stat, 0);
+            mediumStats.put(stat, 0);
+        }
     }
 
-    public int getStat(String stat) {
+    public Object calculateStat(MapStatsType stat) {
         switch (stat) {
-            case "animalsNumber":
+            case animalsNumber:
                 return map.animals.size();
-            case "plantsNumber":
+            case plantsNumber:
                 return map.mapElementMap.size() - map.animals.size();
-            case "dominatingGene":
-                int[] geneCount = new int[8];
-                for(Animal animal: map.animals) {
-                    for(int i = 0; i < 8; i++) {
-                        geneCount[i] += animal.genome.geneCount[i];
-                    }
-                }
-                int max = 0;
-                for(int i = 0; i < 8; i++){
-                    if(geneCount[max] < geneCount[i]) max = i;
-                }
-                return max;
-            case "averageEnergy":
+            case averageEnergy:
+                if(map.animals.size() == 0) return 0;
                 int energySum = 0;
                 for(Animal animal: map.animals) {
                     energySum += animal.energy;
                 }
                 return energySum / map.animals.size();
-            case "averageLifespan":
-                int lifespanSum = 0;
-                for(Animal animal: map.animals) {
-                    lifespanSum += (map.epoch - animal.epochBorn);
-                }
-                return lifespanSum / map.animals.size();
-            case "averageChildCount":
+            case averageLifespan:
+                if(deadAnimals == 0) return 0;
+                return lifespanSum / deadAnimals;
+            case averageChildCount:
+                if(map.animals.size() == 0) return 0;
                 int childCount = 0;
                 for(Animal animal: map.animals) {
                     childCount += animal.childCount;
@@ -48,7 +60,89 @@ public class MapStats {
         }
     }
 
-    public List<Integer> getGenome(int x, int y) {
-        return ((Animal)(map.objectAt(new Vector2D(x, y)).toArray()[0])).genome.sequence;
+    public void calculateStats() {
+        for (MapStatsType stat : MapStatsType.values()) {
+            int statValue = (int) calculateStat(stat);
+            int currentValue = mediumStats.get(stat);
+            currentStats.put(stat, statValue);
+            mediumStats.put(stat, currentValue + statValue);
+        }
+    }
+
+    public Map.Entry<Genome, Integer> getDominatingGenome() {
+        if(genomes.size() == 0) return null;
+        Map.Entry<Genome, Integer> maxEntry = Collections.max(genomes.entrySet(), new Comparator<Map.Entry<Genome, Integer>>() {
+            public int compare(Map.Entry<Genome, Integer> e1, Map.Entry<Genome, Integer> e2) {
+                return e1.getValue().compareTo(e2.getValue());
+            }
+        });
+        return maxEntry;
+    }
+
+    public int getEpoch() {
+        return map.epoch;
+    }
+
+    public int getStat(MapStatsType stat) {
+        return currentStats.get(stat);
+    }
+
+    public int getAvgStat(MapStatsType stat) {
+        return mediumStats.get(stat) / map.epoch;
+    }
+
+    public boolean isTracking() {
+        return trackedAnimal != null;
+    }
+
+    public void untrackAnimal() {
+        trackedAnimal = null;
+        for(Animal animal: map.animals) {
+            animal.isSuccessor = false;
+        }
+        map.tracking = false;
+        map.successorCount = 0;
+    }
+
+    public void trackAnimal(Vector2D position) {
+        untrackAnimal();
+        map.tracking = true;
+        List<Animal> animals = map.getSortedAnimalsFrom(position);
+        if(animals.size() > 0) {
+            trackedAnimal = animals.get(0);
+            trackedAnimal.isSuccessor = true;
+        }
+    }
+
+
+    public int getTrackedChildCount() {
+        return trackedAnimal.childCount;
+    }
+
+    public int getTrackedSuccessorsCount() {
+        return map.successorCount;
+    }
+
+    public int getTrackedDeathEpoch() {
+        return trackedLifespan;
+    }
+
+    @Override
+    public void propertyChange(PropertyChangeEvent evt) {
+        String event = evt.getPropertyName();
+        if (event.equals("dayEnd")) {
+            calculateStats();
+        } else if(event.equals("animalDied")) {
+            Animal animal = (Animal) evt.getNewValue();
+            if(animal == trackedAnimal) {
+                trackedLifespan = map.epoch - trackedAnimal.epochBorn;
+            }
+            lifespanSum += map.epoch - animal.epochBorn;
+            deadAnimals++;
+        } else if(event.equals("animalBorn")) {
+            Animal animal = (Animal) evt.getNewValue();
+            Integer currentGenomeCount = genomes.get(animal.genome);
+            genomes.put(animal.genome, currentGenomeCount == null ? 1 : currentGenomeCount + 1);
+        }
     }
 }

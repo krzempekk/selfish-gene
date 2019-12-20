@@ -1,9 +1,7 @@
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
 import java.util.*;
 import java.util.List;
 
@@ -13,12 +11,13 @@ public class BoardPanel extends JPanel {
     public WorldMap map;
     public Map<String, ImageIcon> sprites = new HashMap<>();
 
-    BoardPanel(int width, int height, int gap, int boardWidth, int boardHeight, WorldMap map, SidePanel driver) {
+    BoardPanel(int index, int width, int height, int gap, int boardWidth, int boardHeight, WorldMap map, SidePanel sidePanel) {
         this.width = width; this.height = height; this.gap = gap;
         this.boardWidth = boardWidth; this.boardHeight = boardHeight;
         this.map = map;
-        this.setLayout(new GridLayout(width, height, gap, gap));
+        this.setLayout(new GridLayout(height, width, gap, gap));
         this.generateSprites();
+
 
         for(int y = height - 1; y >= 0; y--) {
             for(int x = 0; x <= width - 1; x++) {
@@ -32,8 +31,8 @@ public class BoardPanel extends JPanel {
                 l.addMouseListener(new MouseAdapter() {
                     @Override
                     public void mouseClicked(MouseEvent mouseEvent) {
-                        super.mouseClicked(mouseEvent);
-                        driver.selectAnimal(_x, _y);
+                    super.mouseClicked(mouseEvent);
+                    sidePanel.animalSelected(index, new Vector2D(_x, _y));
                     }
                 });
 
@@ -43,9 +42,6 @@ public class BoardPanel extends JPanel {
         }
 
         this.setSize(boardWidth, boardHeight);
-    }
-
-    public void addActionListener(ActionListener acl) {
     }
 
     public void renderMap() {
@@ -100,4 +96,5 @@ public class BoardPanel extends JPanel {
         sprites.put("food", icon);
 
     }
+
 }
