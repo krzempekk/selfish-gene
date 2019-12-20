@@ -20,6 +20,8 @@ public class WorldMap implements PropertyChangeListener {
 
     public boolean tracking;
     public int successorCount;
+    public int startEnergy;
+    public int moveEnergy;
 
     private PropertyChangeSupport support;
 
@@ -33,6 +35,8 @@ public class WorldMap implements PropertyChangeListener {
         this.animals = new ArrayList<>();
         this.freePositions = new HashMap<>();
         this.mapSegments = new ArrayList<>();
+        this.startEnergy = startEnergy;
+        this.moveEnergy = moveEnergy;
 
         this.support = new PropertyChangeSupport(this);
 

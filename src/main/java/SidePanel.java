@@ -17,10 +17,15 @@ public class SidePanel extends JPanel implements ActionListener {
 
     List<MapStats> mapStatsList;
 
+    JLabel epochLabel;
+
     JTable statTable;
     JTable trackedAnimalTable;
     JScrollPane statTablePane;
     JScrollPane trackedAnimalTablePane;
+
+    List<JLabel> mapDominatingGenomes;
+    List<JLabel> trackedAnimalGenomes;
 
     SidePanel(int sidebarWidth, int boardHeight, List<MapStats> mapStatsList) {
         this.mapStatsList = mapStatsList;
@@ -58,7 +63,7 @@ public class SidePanel extends JPanel implements ActionListener {
         statTable = new JTable(statTableModel);
 
         statTablePane = new JScrollPane(statTable);
-        statTablePane.setPreferredSize(new Dimension(400, 150));
+        statTablePane.setPreferredSize(new Dimension(500, 110));
 
         TableModel trackedAnimalsTableModel = new AbstractTableModel() {
             @Override
@@ -107,9 +112,24 @@ public class SidePanel extends JPanel implements ActionListener {
         trackedAnimalTable = new JTable(trackedAnimalsTableModel);
 
         trackedAnimalTablePane = new JScrollPane(trackedAnimalTable);
-        trackedAnimalTablePane.setPreferredSize(new Dimension(400, 150));
+        trackedAnimalTablePane.setPreferredSize(new Dimension(500, 80));
 
-        this.add(new JLabel("Epoch number " + mapStatsList.get(0).getEpoch()));
+        this.epochLabel = new JLabel("Epoch number " + mapStatsList.get(0).getEpoch());
+
+
+        this.mapDominatingGenomes = new ArrayList<>();
+        this.trackedAnimalGenomes = new ArrayList<>();
+
+        for(int i = 0; i < mapStatsList.size(); i++) {
+            JLabel l = new JLabel("");
+            mapDominatingGenomes.add(l);
+            this.add(l);
+            l = new JLabel("");
+            trackedAnimalGenomes.add(l);
+            this.add(l);
+        }
+
+        this.add(epochLabel);
         this.add(statTablePane);
         this.add(trackedAnimalTablePane);
 
@@ -123,8 +143,15 @@ public class SidePanel extends JPanel implements ActionListener {
     }
 
     public void update() {
+        this.epochLabel.setText("Epoch number " + mapStatsList.get(0).getEpoch());
         statTable.repaint();
         trackedAnimalTable.repaint();
+
+        for(int i = 0; i < mapStatsList.size(); i++) {
+            mapDominatingGenomes.get(i).setText(mapStatsList.get(i).getDominatingGenome());
+            trackedAnimalGenomes.get(i).setText(mapStatsList.get(i).getTrackedGenome());
+        }
+
     }
 
     public void addActionListener(ActionListener acl) {
@@ -159,11 +186,8 @@ public class SidePanel extends JPanel implements ActionListener {
             this.pauseButton.setText("PAUSE");
         } else if(command.equals("SAVE")) {
             this.saveStatsToFile();
+        } else if(command.equals("ANIMALS WITH DOMINATING GENOME")) {
+
         }
     }
-
-    public void animalSelected(int mapIndex, Vector2D position) {
-        mapStatsList.get(mapIndex).trackAnimal(position);
-    }
-
 }

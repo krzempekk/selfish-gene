@@ -69,14 +69,14 @@ public class MapStats implements PropertyChangeListener {
         }
     }
 
-    public Map.Entry<Genome, Integer> getDominatingGenome() {
+    public String getDominatingGenome() {
         if(genomes.size() == 0) return null;
         Map.Entry<Genome, Integer> maxEntry = Collections.max(genomes.entrySet(), new Comparator<Map.Entry<Genome, Integer>>() {
             public int compare(Map.Entry<Genome, Integer> e1, Map.Entry<Genome, Integer> e2) {
                 return e1.getValue().compareTo(e2.getValue());
             }
         });
-        return maxEntry;
+        return maxEntry.getKey().toString();
     }
 
     public int getEpoch() {
@@ -96,6 +96,8 @@ public class MapStats implements PropertyChangeListener {
     }
 
     public void untrackAnimal() {
+        trackedLifespan = 0;
+        trackedAnimal.isTracked = false;
         trackedAnimal = null;
         for(Animal animal: map.animals) {
             animal.isSuccessor = false;
@@ -105,15 +107,32 @@ public class MapStats implements PropertyChangeListener {
     }
 
     public void trackAnimal(Vector2D position) {
-        untrackAnimal();
+        if(trackedAnimal != null) {
+            untrackAnimal();
+        }
         map.tracking = true;
         List<Animal> animals = map.getSortedAnimalsFrom(position);
         if(animals.size() > 0) {
             trackedAnimal = animals.get(0);
             trackedAnimal.isSuccessor = true;
+            trackedAnimal.isTracked = true;
         }
     }
 
+    public Vector2D getTrackedPosition() {
+        return trackedAnimal == null ? null : trackedAnimal.getPosition();
+    }
+
+    public String getTrackedGenome() {
+        if(trackedAnimal != null) {
+            String genome = "";
+            for(int i = 0; i < trackedAnimal.genome.geneCount.length; i++) {
+                genome = genome + i + ":" + trackedAnimal.genome.geneCount[i] + ",";
+            }
+            return genome;
+        }
+        return null;
+    }
 
     public int getTrackedChildCount() {
         return trackedAnimal.childCount;
@@ -139,6 +158,10 @@ public class MapStats implements PropertyChangeListener {
             }
             lifespanSum += map.epoch - animal.epochBorn;
             deadAnimals++;
+            Integer currentGenomeCount = genomes.get(animal.genome);
+            if(currentGenomeCount != null) {
+                genomes.put(animal.genome, currentGenomeCount - 1);
+            }
         } else if(event.equals("animalBorn")) {
             Animal animal = (Animal) evt.getNewValue();
             Integer currentGenomeCount = genomes.get(animal.genome);

@@ -57,7 +57,7 @@ public class Main implements ActionListener {
         this.sidePanel.addActionListener(this);
 
         for(int i = 0; i < this.mapNumber; i++) {
-            BoardPanel boardPanel = new BoardPanel(i, width, height, gap, boardWidth, boardHeight, mapList.get(i), sidePanel);
+            BoardPanel boardPanel = new BoardPanel(width, height, gap, boardWidth, boardHeight, mapList.get(i), mapStatsList.get(i));
             this.boardPanelList.add(boardPanel);
             frame.add(boardPanel);
         }

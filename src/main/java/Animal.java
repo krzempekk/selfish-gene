@@ -14,6 +14,7 @@ public class Animal implements IMapElement {
     public int epochBorn;
     public int childCount;
     public boolean isSuccessor;
+    public boolean isTracked;
 
     public Animal(Vector2D position, WorldMap worldMap, int energy, int moveEnergy) {
         this(new Genome(), position, worldMap, energy, moveEnergy, false);
@@ -31,6 +32,7 @@ public class Animal implements IMapElement {
         this.epochBorn = worldMap.epoch;
         this.childCount = 0;
         this.isSuccessor = isSuccessor;
+        this.isTracked = false;
     }
 
     private void turn() {

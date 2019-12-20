@@ -25,6 +25,7 @@ public class Genome {
 
     public Genome(List<Integer> sequence) {
         this.sequence = sequence;
+        this.fixSequence();
         Collections.sort(sequence);
         this.countGenes();
     }
