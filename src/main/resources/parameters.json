@@ -1,13 +1,13 @@
 {
-  "width": 10,
-  "height": 10,
+  "width": 20,
+  "height": 20,
   "startEnergy": 40,
   "moveEnergy": 1,
-  "plantEnergy": 5,
+  "plantEnergy": 40,
   "jungleRatio": 0.05,
-  "initialAnimals": 10,
-  "initialPlants": 30,
-  "plantsGrowth": 5,
-  "stepPause": 500,
+  "initialAnimals": 20,
+  "initialPlants": 10,
+  "plantsGrowth": 1,
+  "stepPause": 200,
   "mapNumber": 2
 }

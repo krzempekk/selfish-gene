@@ -12,14 +12,15 @@ public class Animal implements IMapElement {
     private int moveEnergy;
     private int epochBorn;
     private int childCount;
-    private boolean isSuccessor;
+    private boolean isSuccessorOfTracked;
+    private boolean isChildOfTracked;
     private boolean isTracked;
 
     public Animal(Vector2D position, WorldMap worldMap, int energy, int moveEnergy) {
-        this(new Genome(), position, worldMap, energy, moveEnergy, false);
+        this(new Genome(), position, worldMap, energy, moveEnergy, false, false);
     }
 
-    public Animal(Genome genome, Vector2D position, WorldMap worldMap, int energy, int moveEnergy, boolean isSuccessor) {
+    public Animal(Genome genome, Vector2D position, WorldMap worldMap, int energy, int moveEnergy, boolean isChildOfTracked, boolean isSuccessorOfTracked) {
         this.genome = genome;
         this.position = position;
         this.direction = MapDirection.values()[Utils.randomInt(0, 7)];
@@ -29,7 +30,8 @@ public class Animal implements IMapElement {
         this.moveEnergy = moveEnergy;
         this.epochBorn = worldMap.getEpoch();
         this.childCount = 0;
-        this.isSuccessor = isSuccessor;
+        this.isChildOfTracked = isChildOfTracked;
+        this.isSuccessorOfTracked = isSuccessorOfTracked;
     }
 
     @Override
@@ -45,11 +47,13 @@ public class Animal implements IMapElement {
 
     public int getEpochBorn() { return this.epochBorn; }
 
-    public boolean getSuccessor() { return this.isSuccessor; }
+    public boolean isChildOfTracked() { return this.isChildOfTracked; }
 
-    public void setSuccessor(boolean successor) { this.isSuccessor = successor; }
+    public boolean isSuccessorOfTracked() { return this.isSuccessorOfTracked; }
 
     public void setTracked(boolean tracked) { this.isTracked = tracked; }
+
+    public void setSuccessorOfTracked(boolean successorOfTracked) { this.isSuccessorOfTracked = successorOfTracked; }
 
     private void turn() {
          int angle = this.genome.getSequence().get(Utils.randomInt(0, Genome.SEQ_LEN - 1));
@@ -78,12 +82,13 @@ public class Animal implements IMapElement {
         this.energy *= (1 - REPRODUCTION_ENERGY_LOSS);
         partner.energy *= (1 - REPRODUCTION_ENERGY_LOSS);
 
-        if(this.isTracked) this.childCount++;
-        if(partner.isTracked) partner.childCount++;
+        this.childCount++;
+        partner.childCount++;
 
-        boolean isChildSuccessor = this.isSuccessor || partner.isSuccessor;
+        boolean isChildOfTracked = this.isTracked || partner.isTracked;
+        boolean isSuccessorOfTracked = isChildOfTracked || this.isSuccessorOfTracked || partner.isSuccessorOfTracked;
 
-        return new Animal(newGenome, newPosition, this.worldMap, newEnergy, this.moveEnergy, isChildSuccessor);
+        return new Animal(newGenome, newPosition, this.worldMap, newEnergy, this.moveEnergy, isChildOfTracked, isSuccessorOfTracked);
     }
 
     public void addPropertyChangeListener(PropertyChangeListener pcl) {

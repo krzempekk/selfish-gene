@@ -17,16 +17,16 @@ import org.json.*;
 import java.util.List;
 
 public class Main implements ActionListener, ChangeListener {
-    public SidePanel sidePanel;
+    private SidePanel sidePanel;
 
-    public List<WorldMap> mapList;
-    public List<MapStats> mapStatsList;
-    public List<BoardPanel> boardPanelList;
+    private List<WorldMap> mapList;
+    private List<MapStats> mapStatsList;
+    private List<BoardPanel> boardPanelList;
 
-    public int width, height, startEnergy, moveEnergy, plantEnergy;
-    public double jungleRatio;
+    private int width, height, startEnergy, moveEnergy, plantEnergy;
+    private double jungleRatio;
 
-    public int initialAnimals, initialPlants, plantsGrowth, stepPause, mapNumber;
+    private int initialAnimals, initialPlants, plantsGrowth, stepPause, mapNumber;
 
     private AtomicBoolean paused;
 
@@ -53,17 +53,15 @@ public class Main implements ActionListener, ChangeListener {
             this.mapStatsList.add(new MapStats(map));
         }
 
-        this.sidePanel = new SidePanel(sidebarWidth, boardHeight, this.mapStatsList);
+        this.sidePanel = new SidePanel(sidebarWidth, boardHeight, this.mapStatsList, this.stepPause);
         this.sidePanel.addActionListener(this);
         frame.add(this.sidePanel);
 
         for(int i = 0; i < this.mapNumber; i++) {
-            BoardPanel boardPanel = new BoardPanel(this.width, this.height, gap, boardWidth, boardHeight, this.mapList.get(i), this.mapStatsList.get(i));
+            BoardPanel boardPanel = new BoardPanel(this.width, this.height, gap, boardWidth, boardHeight, this.mapList.get(i), this.mapStatsList.get(i), this.sidePanel);
             this.boardPanelList.add(boardPanel);
             frame.add(boardPanel);
         }
-
-//        frame.setSize((boardWidth + 10) * this.mapNumber + sidebarWidth, boardHeight + 10);
 
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setVisible(true);
@@ -72,7 +70,7 @@ public class Main implements ActionListener, ChangeListener {
 
     private String getParametersFile() {
         StringBuilder contentBuilder = new StringBuilder();
-        try (Stream<String> stream = Files.lines(Paths.get(getClass().getResource("parameters.json").toURI()), StandardCharsets.UTF_8)) {
+        try (Stream<String> stream = Files.lines(Paths.get(this.getClass().getResource("parameters.json").toURI()), StandardCharsets.UTF_8)) {
             stream.forEach(s -> contentBuilder.append(s).append("\n"));
         } catch (IOException | URISyntaxException e) {
             e.printStackTrace();
@@ -81,48 +79,48 @@ public class Main implements ActionListener, ChangeListener {
     }
 
     private void readParameters() {
-        String paramsFile = getParametersFile();
+        String paramsFile = this.getParametersFile();
         JSONObject params = new JSONObject(paramsFile);
 
-        width = params.getInt("width");
-        height = params.getInt("height");
-        startEnergy = params.getInt("startEnergy");
-        moveEnergy = params.getInt("moveEnergy");
-        plantEnergy = params.getInt("plantEnergy");
-        jungleRatio = params.getDouble("jungleRatio");
-        initialAnimals = params.getInt("initialAnimals");
-        initialPlants = params.getInt("initialPlants");
-        plantsGrowth = params.getInt("plantsGrowth");
-        stepPause = params.getInt("stepPause");
-        mapNumber = params.getInt("mapNumber");
+        this.width = params.getInt("width");
+        this.height = params.getInt("height");
+        this.startEnergy = params.getInt("startEnergy");
+        this.moveEnergy = params.getInt("moveEnergy");
+        this.plantEnergy = params.getInt("plantEnergy");
+        this.jungleRatio = params.getDouble("jungleRatio");
+        this.initialAnimals = params.getInt("initialAnimals");
+        this.initialPlants = params.getInt("initialPlants");
+        this.plantsGrowth = params.getInt("plantsGrowth");
+        this.stepPause = params.getInt("stepPause");
+        this.mapNumber = params.getInt("mapNumber");
     }
 
     public void run() throws InterruptedException {
-        paused = new AtomicBoolean(false);
+        this.paused = new AtomicBoolean(false);
 
         Runnable runnable = new Runnable() {
             @Override
             public void run() {
                 while (true) {
-                    if (paused.get()) {
-                        synchronized (threadObject) {
+                    if (Main.this.paused.get()) {
+                        synchronized (Main.this.threadObject) {
                             try {
-                                threadObject.wait();
+                                Main.this.threadObject.wait();
                             } catch (InterruptedException ignored) {
                             }
                         }
                     }
 
-                    for (WorldMap map : mapList) {
+                    for (WorldMap map : Main.this.mapList) {
                         map.run();
                     }
-                    for (BoardPanel boardPanel : boardPanelList) {
+                    for (BoardPanel boardPanel : Main.this.boardPanelList) {
                         boardPanel.renderMap();
                     }
-                    sidePanel.update();
+                    Main.this.sidePanel.update();
 
                     try {
-                        Thread.sleep(stepPause);
+                        Thread.sleep(Main.this.stepPause);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
@@ -130,8 +128,8 @@ public class Main implements ActionListener, ChangeListener {
             }
         };
 
-        threadObject = new Thread(runnable);
-        threadObject.start();
+        this.threadObject = new Thread(runnable);
+        this.threadObject.start();
     }
 
     public static void main(String[] args) throws InterruptedException {
@@ -149,6 +147,21 @@ public class Main implements ActionListener, ChangeListener {
             synchronized(this.threadObject) {
                 this.threadObject.notify();
             }
+        } else if(command.equals("SHOW DOM. GENOME")) {
+            for(MapStats mapStats: this.mapStatsList) {
+                mapStats.setShowDominatingGenome(true);
+            }
+            for(BoardPanel boardPanel: this.boardPanelList) {
+                boardPanel.renderMap();
+            }
+        } else if(command.equals("HIDE DOM. GENOME")) {
+            for(MapStats mapStats: this.mapStatsList) {
+                mapStats.setShowDominatingGenome(false);
+            }
+            for(BoardPanel boardPanel: this.boardPanelList) {
+                boardPanel.renderMap();
+            }
+
         }
     }
 

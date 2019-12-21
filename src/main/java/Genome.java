@@ -79,4 +79,14 @@ public class Genome {
         }
         return (int) hash;
     }
+
+    public boolean equals(Object other) {
+        if(this == other) return true;
+        if(!(other instanceof Genome)) return false;
+        Genome genome = (Genome) other;
+        for(int i = 0; i < 8; i++) {
+            if(this.geneCount[i] != genome.geneCount[i]) return false;
+        }
+        return true;
+    }
 }

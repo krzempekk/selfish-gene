@@ -6,13 +6,13 @@ import java.util.*;
 import java.util.List;
 
 public class BoardPanel extends JPanel {
-    public Map<Vector2D,JLabel> labels = new HashMap<>();
-    public int width, height, gap, boardWidth, boardHeight;
-    public WorldMap map;
-    public MapStats mapStats;
-    public Map<String, ImageIcon> sprites = new HashMap<>();
+    private Map<Vector2D,JLabel> labels = new HashMap<>();
+    private int width, height, gap, boardWidth, boardHeight;
+    private WorldMap map;
+    private MapStats mapStats;
+    private Map<String, ImageIcon> sprites = new HashMap<>();
 
-    BoardPanel(int width, int height, int gap, int boardWidth, int boardHeight, WorldMap map, MapStats mapStats) {
+    BoardPanel(int width, int height, int gap, int boardWidth, int boardHeight, WorldMap map, MapStats mapStats, SidePanel sidePanel) {
         this.width = width; this.height = height; this.gap = gap;
         this.boardWidth = boardWidth; this.boardHeight = boardHeight;
         this.map = map;
@@ -36,6 +36,7 @@ public class BoardPanel extends JPanel {
                     Vector2D pos = new Vector2D(_x, _y);
                     mapStats.trackAnimal(pos);
                     BoardPanel.this.renderMap();
+                    sidePanel.update();
                     }
                 });
 
@@ -58,10 +59,13 @@ public class BoardPanel extends JPanel {
 
         Food foodOnPosition = this.map.getFoodFrom(position);
         List<Animal> animalsOnPosition = this.map.getSortedAnimalsFrom(position);
+        List<Vector2D> animalsWithDominatingGenomePositions = this.mapStats.getAnimalsWithDominatingGenomePositions();
 
         Icon icon;
 
-        if(position.equals(this.mapStats.getTrackedPosition()) && this.mapStats.getTrackedDeathEpoch() > 0) {
+        Vector2D trackedPosition = this.mapStats.getTrackedAnimalPosition();
+
+        if(position.equals(trackedPosition) && this.mapStats.getTrackedAnimalStat(TrackedAnimalStatsType.deathEpoch) > 0) {
             icon = this.getCompoundIcon(background, this.sprites.get("creatureDied"));
         } else if (foodOnPosition != null) {
             icon = this.getCompoundIcon(background, this.sprites.get(mapSegmentType == PlaceType.JUNGLE ? "betterFood" : "food"));
@@ -69,8 +73,11 @@ public class BoardPanel extends JPanel {
             int creatureCount = Math.min(animalsOnPosition.size(), 4);
             int energyLevel = (4 * Math.min(animalsOnPosition.get(0).getEnergy(), this.map.getStartEnergy() - 1)) / this.map.getStartEnergy();
             icon = this.getCompoundIcon(background, this.sprites.get("creature" + creatureCount + "-" + energyLevel));
-            if(position.equals(this.mapStats.getTrackedPosition())) {
+            if(position.equals(trackedPosition)) {
                 icon = this.getCompoundIcon(icon, this.sprites.get("frame"));
+            }
+            if(animalsWithDominatingGenomePositions.contains(position)) {
+                icon = this.getCompoundIcon(icon, this.sprites.get("frame2"));
             }
         } else {
             icon = background;
@@ -101,7 +108,7 @@ public class BoardPanel extends JPanel {
         int iconWidth = (this.boardWidth - (this.width - 1) * this.gap) / this.width;
         int iconHeight = (this.boardHeight - (this.height - 1) * this.gap) / this.height;
 
-        List<String> spriteNames = Arrays.asList("platoCave", "ideaWorld", "frame", "creatureDied");
+        List<String> spriteNames = Arrays.asList("platoCave", "ideaWorld", "frame", "frame2", "creatureDied");
 
         for(String spriteName: spriteNames) {
             ImageIcon icon = this.getIconFromFile(spriteName, iconWidth, iconHeight);

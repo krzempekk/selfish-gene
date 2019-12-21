@@ -13,24 +13,30 @@ import java.util.*;
 import java.util.List;
 
 public class SidePanel extends JPanel implements ActionListener {
-    public JButton pauseButton;
-    public JButton saveButton;
+    private JButton pauseButton;
+    private JButton saveButton;
+    private JButton genomeButton;
 
-    List<MapStats> mapStatsList;
+    private List<MapStats> mapStatsList;
 
-    JLabel epochLabel;
+    private JLabel epochLabel;
 
-    JTable statTable;
-    JTable trackedAnimalTable;
-    JTable genomeTable;
+    private JTable statTable;
+    private JTable trackedAnimalTable;
+    private JTable genomeTable;
 
-    JSlider animationSpeed;
+    private JSlider animationSpeed;
 
-    SidePanel(int sidebarWidth, int boardHeight, List<MapStats> mapStatsList) {
+    SidePanel(int sidebarWidth, int boardHeight, List<MapStats> mapStatsList, int initialStepPause) {
         this.mapStatsList = mapStatsList;
 
         this.setPreferredSize(new Dimension(sidebarWidth, boardHeight));
-        this.setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));
+
+        this.setLayout(new GridBagLayout());
+        GridBagConstraints cons = new GridBagConstraints();
+        cons.fill = GridBagConstraints.HORIZONTAL;
+        cons.weightx = 1;
+        cons.gridx = 0;
 
         TableModel statTableModel = new AbstractTableModel() {
             @Override
@@ -52,17 +58,15 @@ public class SidePanel extends JPanel implements ActionListener {
             @Override
             public Object getValueAt(int row, int col) {
                 MapStatsType stat = MapStatsType.values()[row];
-                if(col == 0) {
-                    return stat.toString();
-                }
+                if(col == 0) return stat.toString();
                 return mapStatsList.get(col - 1).getStat(stat);
             }
         };
-
         this.statTable = new JTable(statTableModel);
-
         JScrollPane statTablePane = new JScrollPane(this.statTable);
         statTablePane.setPreferredSize(new Dimension(sidebarWidth, 110));
+        this.statTable.getColumnModel().getColumn(0).setMinWidth(120);
+
 
         TableModel trackedAnimalsTableModel = new AbstractTableModel() {
             @Override
@@ -73,7 +77,7 @@ public class SidePanel extends JPanel implements ActionListener {
 
             @Override
             public int getRowCount() {
-                return 3;
+                return TrackedAnimalStatsType.values().length;
             }
 
             @Override
@@ -83,42 +87,26 @@ public class SidePanel extends JPanel implements ActionListener {
 
             @Override
             public Object getValueAt(int row, int col) {
-                if(col == 0) {
-                    switch (row) {
-                        case 0:
-                            return "Children count";
-                        case 1:
-                            return "Successors count";
-                        case 2:
-                            return "Epoch died";
-                    }
-                }
+                TrackedAnimalStatsType stat = TrackedAnimalStatsType.values()[row];
+                if(col == 0) return stat.toString();
                 MapStats mapStats = mapStatsList.get(col - 1);
-                if(mapStats.isTracking()) {
-                    switch (row) {
-                        case 0:
-                            return mapStats.getTrackedChildCount();
-                        case 1:
-                            return mapStats.getTrackedSuccessorsCount();
-                        case 2:
-                            return mapStats.getTrackedDeathEpoch();
-                    }
-                }
+                if(mapStats.isTracking()) return mapStats.getTrackedAnimalStat(stat);
                 return "-";
             }
         };
-
         this.trackedAnimalTable = new JTable(trackedAnimalsTableModel);
-
         JScrollPane trackedAnimalTablePane = new JScrollPane(this.trackedAnimalTable);
         trackedAnimalTablePane.setPreferredSize(new Dimension(sidebarWidth, 80));
+        this.trackedAnimalTable.getColumnModel().getColumn(0).setMinWidth(120);
+
 
         TableModel genomeTableModel = new AbstractTableModel() {
             @Override
             public String getColumnName(int col) {
                 if(col == 0) return "Map";
                 if(col == 1) return "Type";
-                return String.valueOf(col - 1);
+                if(col == 2) return "Count";
+                return String.valueOf(col - 3);
             }
 
             @Override
@@ -128,35 +116,45 @@ public class SidePanel extends JPanel implements ActionListener {
 
             @Override
             public int getColumnCount() {
-                return 10;
+                return 11;
             }
 
             @Override
             public Object getValueAt(int row, int col) {
                 int mapIndex = row / 2;
                 if(col == 0) { return String.valueOf(mapIndex + 1); }
-                if(col == 1) { return (row % 2 == 0) ? "Dominating" : "Selected"; };
-                Genome g = null;
+                Genome currentGenome = null;
                 if(row % 2 == 0) {
-                    g = mapStatsList.get(mapIndex).getDominatingGenome();
-                } else if(mapStatsList.get(mapIndex).getTrackedAnimal() != null) {
-                    g = mapStatsList.get(mapIndex).getTrackedAnimal().getGenome();
+                    if(col == 1) return "Dominating";
+                    Map.Entry<Genome, Integer> genomeEntry = mapStatsList.get(mapIndex).getDominatingGenome();
+                    if(genomeEntry != null) {
+                        if(col == 2) return genomeEntry.getValue();
+                        currentGenome = genomeEntry.getKey();
+                    }
+                } else {
+                    if(col == 1) return "Selected";
+                    if(col == 2) return "-";
+                    if(mapStatsList.get(mapIndex).getTrackedAnimal() != null) {
+                        currentGenome = mapStatsList.get(mapIndex).getTrackedAnimal().getGenome();
+                    }
                 }
-                if(g != null) {
-                    return g.getGeneCount()[col - 2];
+                if(currentGenome != null) {
+                    return currentGenome.getGeneCount()[col - 3];
                 }
                 return null;
             }
         };
-
         this.genomeTable = new JTable(genomeTableModel);
-
         JScrollPane genomeTablePane = new JScrollPane(this.genomeTable);
         genomeTablePane.setPreferredSize(new Dimension(sidebarWidth, 80));
+        this.genomeTable.getColumnModel().getColumn(1).setMinWidth(80);
+        this.genomeTable.getColumnModel().getColumn(2).setMinWidth(40);
+        for(int i = 3; i < 11; i++) this.genomeTable.getColumnModel().getColumn(i).setPreferredWidth(15);
 
-        this.epochLabel = new JLabel("Epoch number " + mapStatsList.get(0).getEpoch());
 
-        this.animationSpeed = new JSlider(JSlider.HORIZONTAL, 10, 500, 200);
+        this.epochLabel = new JLabel("Epoch number " + mapStatsList.get(0).getEpoch(), JLabel.CENTER);
+
+        this.animationSpeed = new JSlider(JSlider.HORIZONTAL, 10, 500, initialStepPause);
 
         this.animationSpeed.setMajorTickSpacing(100);
         this.animationSpeed.setMinorTickSpacing(10);
@@ -169,20 +167,24 @@ public class SidePanel extends JPanel implements ActionListener {
         this.saveButton = new JButton("SAVE");
         this.saveButton.addActionListener(this);
 
-        this.add(this.epochLabel);
-        this.add(new JLabel("Basic stats"));
-        this.add(statTablePane);
-        this.add(new JLabel("Tracked animals stats"));
-        this.add(trackedAnimalTablePane);
-        this.add(new JLabel("Genome stats"));
-        this.add(genomeTablePane);
-        this.add(new JLabel("Simulation speed"));
-        this.add(this.animationSpeed);
+        this.genomeButton = new JButton("SHOW DOM. GENOME");
+        this.genomeButton.addActionListener(this);
+
+        this.add(this.epochLabel, cons);
+        this.add(new JLabel("Basic stats"), cons);
+        this.add(statTablePane, cons);
+        this.add(new JLabel("Tracked animals stats"), cons);
+        this.add(trackedAnimalTablePane, cons);
+        this.add(new JLabel("Genome stats"), cons);
+        this.add(genomeTablePane, cons);
+        this.add(new JLabel("Simulation speed"), cons);
+        this.add(this.animationSpeed, cons);
 
         JPanel buttonPanel = new JPanel();
         buttonPanel.add(this.pauseButton);
         buttonPanel.add(this.saveButton);
-        this.add(buttonPanel);
+        buttonPanel.add(this.genomeButton);
+        this.add(buttonPanel, cons);
     }
 
     public void update() {
@@ -194,6 +196,7 @@ public class SidePanel extends JPanel implements ActionListener {
 
     public void addActionListener(EventListener acl) {
         this.pauseButton.addActionListener((ActionListener) acl);
+        this.genomeButton.addActionListener((ActionListener) acl);
         this.animationSpeed.addChangeListener((ChangeListener) acl);
     }
 
@@ -229,8 +232,11 @@ public class SidePanel extends JPanel implements ActionListener {
             case "SAVE":
                 this.saveStatsToFile();
                 break;
-            case "ANIMALS WITH DOMINATING GENOME":
-
+            case "SHOW DOM. GENOME":
+                this.genomeButton.setText("HIDE DOM. GENOME");
+                break;
+            case "HIDE DOM. GENOME":
+                this.genomeButton.setText("SHOW DOM. GENOME");
                 break;
         }
     }
