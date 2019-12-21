@@ -196,7 +196,7 @@ public class MapStats implements PropertyChangeListener {
                 Integer currentGenomeCount = this.genomes.get(animal.getGenome());
                 this.genomes.put(animal.getGenome(), currentGenomeCount == null ? 1 : currentGenomeCount + 1);
                 if (animal.isChildOfTracked()) {
-                    this.trackedAnimalStats.put(TrackedAnimalStatsType.childenCount, this.trackedAnimalStats.get(TrackedAnimalStatsType.childenCount) + 1);
+                    this.trackedAnimalStats.put(TrackedAnimalStatsType.childrenCount, this.trackedAnimalStats.get(TrackedAnimalStatsType.childrenCount) + 1);
                 }
 
                 Integer currentAllGenomeCount = this.allGenomes.get(animal.getGenome());
