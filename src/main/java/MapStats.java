@@ -19,6 +19,12 @@ public class MapStats implements PropertyChangeListener {
     private Animal trackedAnimal;
     private Map<TrackedAnimalStatsType, Integer> trackedAnimalStats;
 
+    private static Comparator<Map.Entry<Genome, Integer>> comparator = new Comparator<Map.Entry<Genome, Integer>>() {
+        public int compare(Map.Entry<Genome, Integer> e1, Map.Entry<Genome, Integer> e2) {
+            return e1.getValue().compareTo(e2.getValue());
+        }
+    };
+
     MapStats(WorldMap map) {
         this.map = map;
         this.map.addPropertyChangeListener(this);
@@ -137,11 +143,11 @@ public class MapStats implements PropertyChangeListener {
 
     public Map.Entry<Genome, Integer> getDominatingGenome() {
         if(this.genomes.size() == 0) return null;
-        return Collections.max(this.genomes.entrySet(), new Comparator<Map.Entry<Genome, Integer>>() {
-            public int compare(Map.Entry<Genome, Integer> e1, Map.Entry<Genome, Integer> e2) {
-                return e1.getValue().compareTo(e2.getValue());
-            }
-        });
+        return Collections.max(this.genomes.entrySet(), comparator);
+    }
+
+    public Genome getGloballyDominatingGenome() {
+        return Collections.max(this.allGenomes.entrySet(), comparator).getKey();
     }
 
     public void setShowDominatingGenome(boolean show) {

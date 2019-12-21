@@ -69,7 +69,11 @@ public class Genome {
     }
 
     public String toString() {
-        return this.sequence.toString();
+        StringBuilder str = new StringBuilder();
+        for(int i = 0; i < 8; i++) {
+            str.append(i).append(":").append(this.geneCount[i]).append(", ");
+        }
+        return str.toString();
     }
 
     public int hashCode() {

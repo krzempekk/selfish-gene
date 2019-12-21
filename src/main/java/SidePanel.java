@@ -208,6 +208,7 @@ public class SidePanel extends JPanel implements ActionListener {
             for(MapStatsType mapStat: MapStatsType.values()) {
                 stats.put(String.valueOf(mapStat), mapStats.getAvgStat(mapStat));
             }
+            stats.put("Dominating genome", mapStats.getGloballyDominatingGenome());
             statList.add(stats);
         }
         statObject.put("maps", statList);

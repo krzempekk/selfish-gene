@@ -1,1 +1,20 @@
-{"maps":[{"Average child count":2,"Number of animals":48,"Average lifespan":104,"Number of plants":520,"Average energy":37}]}
+{
+  "maps": [
+    {
+      "Average child count": 1,
+      "Dominating genome": "0:5, 1:2, 2:6, 3:2, 4:4, 5:2, 6:7, 7:4, ",
+      "Number of animals": 79,
+      "Average lifespan": 42,
+      "Number of plants": 10,
+      "Average energy": 31
+    },
+    {
+      "Average child count": 2,
+      "Dominating genome": "0:3, 1:2, 2:6, 3:3, 4:3, 5:6, 6:7, 7:2, ",
+      "Number of animals": 79,
+      "Average lifespan": 41,
+      "Number of plants": 11,
+      "Average energy": 30
+    }
+  ]
+}
